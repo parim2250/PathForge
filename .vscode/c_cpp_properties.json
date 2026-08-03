@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/core",
+                "${workspaceFolder}/src/rendering",
+                "${workspaceFolder}/src/algorithms",
+                "${workspaceFolder}/src/generators",
+                "${workspaceFolder}/src/ai",
+                "${workspaceFolder}/src/ui",
+                "${workspaceFolder}/src/benchmark",
+                "C:/SFML/include",
+                "C:/mingw64/include",
+                "C:/mingw64/include/c++/13.1.0",
+                "C:/mingw64/include/c++/13.1.0/x86_64-w64-mingw32"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:/mingw64/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}
