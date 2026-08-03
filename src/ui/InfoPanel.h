@@ -1,6 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <string>
+#include <vector>
 #include "../rendering/Colors.h"
 #include "../core/Constants.h"
 
@@ -9,13 +10,13 @@ private:
     sf::Font font;
     bool fontLoaded = false;
     std::string currentMode = "WALL";
+    std::string currentGameMode = "CUSTOM";
+    std::string currentPresetName = "";
+    std::string currentDifficulty = "";
+    int currentLevel = 0;
 
 public:
-    // ============================================
-    // LOAD FONT (try common Windows fonts)
-    // ============================================
     bool loadFont() {
-        // Try common paths for fonts
         std::vector<std::string> fontPaths = {
             "assets/fonts/arial.ttf",
             "C:/Windows/Fonts/arial.ttf",
@@ -32,16 +33,14 @@ public:
         return false;
     }
 
-    // ============================================
-    // SET CURRENT MODE
-    // ============================================
-    void setMode(const std::string& mode) {
-        currentMode = mode;
+    void setMode(const std::string& mode) { currentMode = mode; }
+    void setGameMode(const std::string& mode) { currentGameMode = mode; }
+    void setPresetInfo(const std::string& difficulty, int level, const std::string& name) {
+        currentDifficulty = difficulty;
+        currentLevel = level;
+        currentPresetName = name;
     }
 
-    // ============================================
-    // RENDER THE ENTIRE PANEL
-    // ============================================
     void render(sf::RenderWindow& window) {
         // Panel background
         sf::RectangleShape panel(sf::Vector2f(UI_PANEL_WIDTH, WINDOW_HEIGHT));
@@ -49,7 +48,6 @@ public:
         panel.setFillColor(Colors::BG_MID);
         window.draw(panel);
 
-        // Left border (accent line)
         sf::RectangleShape border(sf::Vector2f(2, WINDOW_HEIGHT));
         border.setPosition(MAZE_WIDTH, 0);
         border.setFillColor(Colors::BORDER_LIGHT);
@@ -57,88 +55,86 @@ public:
 
         if (!fontLoaded) return;
 
-        // ============================================
-        // TITLE
-        // ============================================
-        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 25, 24, Colors::TEXT_PRIMARY, true);
-        drawText(window, "Pathfinding Engine", MAZE_WIDTH + 20, 55, 12, Colors::TEXT_SECONDARY);
+        // Title
+        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 15, 22, Colors::TEXT_PRIMARY, true);
+        drawText(window, "Pathfinding Engine", MAZE_WIDTH + 20, 42, 11, Colors::TEXT_SECONDARY);
 
-        // Divider
-        drawDivider(window, 90);
+        drawDivider(window, 68);
 
-        // ============================================
-        // CURRENT MODE
-        // ============================================
-        drawText(window, "CURRENT MODE", MAZE_WIDTH + 20, 105, 11, Colors::TEXT_SECONDARY);
+        // Game Mode
+        drawText(window, "GAME MODE", MAZE_WIDTH + 20, 78, 10, Colors::TEXT_SECONDARY);
+        sf::RectangleShape gameModeBadge(sf::Vector2f(UI_PANEL_WIDTH - 40, 28));
+        gameModeBadge.setPosition(MAZE_WIDTH + 20, 92);
+        gameModeBadge.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
+        window.draw(gameModeBadge);
+        drawText(window, currentGameMode, MAZE_WIDTH + 30, 96, 15, Colors::TEXT_PRIMARY, true);
 
-        // Mode badge with color
-        sf::Color modeColor = getModeColor();
-        sf::RectangleShape modeBadge(sf::Vector2f(UI_PANEL_WIDTH - 40, 40));
-        modeBadge.setPosition(MAZE_WIDTH + 20, 125);
-        modeBadge.setFillColor(modeColor);
+        // Show preset info if in preset mode
+        int yPos = 130;
+        if (currentGameMode == "PRESET" && !currentPresetName.empty()) {
+            drawText(window, currentDifficulty + "  LEVEL " + std::to_string(currentLevel),
+                     MAZE_WIDTH + 20, yPos, 11, Colors::TEXT_ACCENT);
+            drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos + 15, 13, Colors::TEXT_PRIMARY, true);
+            yPos += 45;
+        }
+
+        drawDivider(window, yPos);
+        yPos += 10;
+
+        // Current placement mode (only relevant for custom)
+        drawText(window, "PLACEMENT MODE", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+        yPos += 14;
+        sf::RectangleShape modeBadge(sf::Vector2f(UI_PANEL_WIDTH - 40, 28));
+        modeBadge.setPosition(MAZE_WIDTH + 20, yPos);
+        modeBadge.setFillColor(getModeColor());
         window.draw(modeBadge);
+        drawText(window, currentMode, MAZE_WIDTH + 30, yPos + 4, 15, Colors::TEXT_PRIMARY, true);
+        yPos += 40;
 
-        drawText(window, currentMode, MAZE_WIDTH + 35, 135, 18, Colors::TEXT_PRIMARY, true);
+        drawDivider(window, yPos);
+        yPos += 10;
 
-        // Divider
-        drawDivider(window, 185);
+        // Game mode switch
+        drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+        yPos += 15;
+        drawKeyBinding(window, "M", "Toggle Custom/Preset", yPos); yPos += 24;
 
-        // ============================================
-        // MODE CONTROLS
-        // ============================================
-        drawText(window, "MODE KEYS", MAZE_WIDTH + 20, 200, 11, Colors::TEXT_SECONDARY);
+        drawDivider(window, yPos + 5);
+        yPos += 15;
 
-        int y = 225;
-        drawKeyBinding(window, "W", "Wall mode", y);       y += 28;
-        drawKeyBinding(window, "S", "Start point", y);     y += 28;
-        drawKeyBinding(window, "E", "End point", y);       y += 28;
-        drawKeyBinding(window, "X", "Erase mode", y);      y += 28;
+        // Preset selection
+        drawText(window, "PRESETS (in Preset mode)", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+        yPos += 15;
+        drawKeyBinding(window, "B", "Beginner", yPos); yPos += 24;
+        drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 24;
+        drawKeyBinding(window, "A", "Advanced", yPos); yPos += 24;
+        drawKeyBinding(window, "1-5", "Level 1-5", yPos); yPos += 24;
 
-        // Divider
-        drawDivider(window, y + 10);
+        drawDivider(window, yPos + 5);
+        yPos += 15;
 
-        // ============================================
-        // MOUSE CONTROLS
-        // ============================================
-        y += 25;
-        drawText(window, "MOUSE", MAZE_WIDTH + 20, y, 11, Colors::TEXT_SECONDARY);
-        y += 25;
+        // Placement keys
+        drawText(window, "PLACEMENT (Custom mode)", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+        yPos += 15;
+        drawKeyBinding(window, "W", "Wall", yPos); yPos += 24;
+        drawKeyBinding(window, "S", "Start", yPos); yPos += 24;
+        drawKeyBinding(window, "E", "End", yPos); yPos += 24;
+        drawKeyBinding(window, "X", "Erase", yPos); yPos += 24;
 
-        drawText(window, "Left Click", MAZE_WIDTH + 20, y, 13, Colors::TEXT_PRIMARY);
-        drawText(window, "Apply mode", MAZE_WIDTH + 130, y, 13, Colors::TEXT_SECONDARY);
-        y += 22;
+        drawDivider(window, yPos + 5);
+        yPos += 15;
 
-        drawText(window, "Left Drag", MAZE_WIDTH + 20, y, 13, Colors::TEXT_PRIMARY);
-        drawText(window, "Paint walls", MAZE_WIDTH + 130, y, 13, Colors::TEXT_SECONDARY);
-        y += 22;
+        // Commands
+        drawText(window, "COMMANDS", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+        yPos += 15;
+        drawKeyBinding(window, "C", "Clear all", yPos); yPos += 24;
+        drawKeyBinding(window, "G", "Clear paths", yPos); yPos += 24;
 
-        drawText(window, "Right Click", MAZE_WIDTH + 20, y, 13, Colors::TEXT_PRIMARY);
-        drawText(window, "Quick start", MAZE_WIDTH + 130, y, 13, Colors::TEXT_SECONDARY);
-        y += 22;
-
-        // Divider
-        drawDivider(window, y + 15);
-
-        // ============================================
-        // COMMANDS
-        // ============================================
-        y += 30;
-        drawText(window, "COMMANDS", MAZE_WIDTH + 20, y, 11, Colors::TEXT_SECONDARY);
-        y += 25;
-
-        drawKeyBinding(window, "C", "Clear all", y);       y += 28;
-        drawKeyBinding(window, "G", "Clear paths", y);     y += 28;
-
-        // ============================================
-        // FOOTER
-        // ============================================
-        drawText(window, "v1.0 | Part 1", MAZE_WIDTH + 20, WINDOW_HEIGHT - 30, 10, Colors::TEXT_SECONDARY);
+        // Footer
+        drawText(window, "v1.5 | Part 1.5", MAZE_WIDTH + 20, WINDOW_HEIGHT - 25, 10, Colors::TEXT_SECONDARY);
     }
 
 private:
-    // ============================================
-    // DRAW TEXT HELPER
-    // ============================================
     void drawText(sf::RenderWindow& window, const std::string& str,
                   float x, float y, int size, sf::Color color, bool bold = false) {
         sf::Text text;
@@ -151,9 +147,6 @@ private:
         window.draw(text);
     }
 
-    // ============================================
-    // DRAW A HORIZONTAL DIVIDER LINE
-    // ============================================
     void drawDivider(sf::RenderWindow& window, float y) {
         sf::RectangleShape line(sf::Vector2f(UI_PANEL_WIDTH - 40, 1));
         line.setPosition(MAZE_WIDTH + 20, y);
@@ -161,29 +154,19 @@ private:
         window.draw(line);
     }
 
-    // ============================================
-    // DRAW KEY BINDING (e.g., "W  Wall mode")
-    // ============================================
     void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
                          const std::string& desc, float y) {
-        // Key badge
-        sf::RectangleShape keyBadge(sf::Vector2f(30, 22));
+        sf::RectangleShape keyBadge(sf::Vector2f(38, 20));
         keyBadge.setPosition(MAZE_WIDTH + 20, y);
         keyBadge.setFillColor(Colors::BUTTON_IDLE);
         keyBadge.setOutlineThickness(1);
         keyBadge.setOutlineColor(Colors::BORDER_LIGHT);
         window.draw(keyBadge);
 
-        // Key letter
-        drawText(window, key, MAZE_WIDTH + 30, y + 2, 14, Colors::TEXT_ACCENT, true);
-
-        // Description
-        drawText(window, desc, MAZE_WIDTH + 60, y + 3, 13, Colors::TEXT_PRIMARY);
+        drawText(window, key, MAZE_WIDTH + 25, y + 2, 12, Colors::TEXT_ACCENT, true);
+        drawText(window, desc, MAZE_WIDTH + 68, y + 3, 12, Colors::TEXT_PRIMARY);
     }
 
-    // ============================================
-    // GET COLOR BASED ON CURRENT MODE
-    // ============================================
     sf::Color getModeColor() {
         if (currentMode == "WALL")  return sf::Color(85, 95, 120);
         if (currentMode == "START") return sf::Color(46, 213, 115);

@@ -7,7 +7,7 @@ const int WINDOW_WIDTH    = 1400;
 const int WINDOW_HEIGHT   = 800;
 
 // ============================================
-// UI PANEL (right side — used in later parts)
+// UI PANEL
 // ============================================
 const int UI_PANEL_WIDTH  = 300;
 
@@ -18,37 +18,37 @@ const int MAZE_WIDTH      = WINDOW_WIDTH - UI_PANEL_WIDTH;
 const int MAZE_HEIGHT     = WINDOW_HEIGHT;
 
 // ============================================
-// GRID DIMENSIONS (must be odd for maze gen)
+// GRID DIMENSIONS (odd for maze generation)
 // ============================================
 const int ROWS            = 31;
 const int COLS            = 51;
-const int CELL_SIZE       = MAZE_WIDTH / COLS;   // = 21 pixels per cell
+const int CELL_SIZE       = MAZE_WIDTH / COLS;
 
 // ============================================
 // ANIMATION
 // ============================================
-const int DEFAULT_SPEED   = 30;   // milliseconds per step
+const int DEFAULT_SPEED   = 30;
 const int MIN_SPEED       = 1;
 const int MAX_SPEED       = 200;
 
 // ============================================
-// CELL TYPES (what a cell contains)
+// CELL TYPES
 // ============================================
 enum class Terrain {
     EMPTY,
     WALL,
-    SAND,      // cost 3 (used in Part 4)
-    WATER,     // cost 5 (used in Part 4)
-    MUD,       // cost 8 (used in Part 4)
+    SAND,
+    WATER,
+    MUD,
     START,
     END
 };
 
 // ============================================
-// VISUALIZATION STATE (used by algorithms later)
+// VISUALIZATION STATE
 // ============================================
 enum class VisualState {
-    NONE,           // not touched by any algorithm
+    NONE,
     VISITED_BFS,
     VISITED_DFS,
     VISITED_ASTAR,
@@ -100,3 +100,29 @@ enum class SolveState {
     SOLVED,
     NO_PATH
 };
+
+// ============================================
+// GAME MODE
+// ============================================
+enum class GameMode {
+    CUSTOM,
+    PRESET
+};
+
+// ============================================
+// DIFFICULTY
+// ============================================
+enum class Difficulty {
+    BEGINNER,
+    INTERMEDIATE,
+    ADVANCED
+};
+
+const int MAZES_PER_DIFFICULTY = 5;
+
+// ============================================
+// MOVEMENT DIRECTIONS (4-directional)
+// UP, RIGHT, DOWN, LEFT
+// ============================================
+const int DR[4] = {-1, 0, 1, 0};
+const int DC[4] = {0, 1, 0, -1};
