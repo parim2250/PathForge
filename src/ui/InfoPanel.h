@@ -144,22 +144,34 @@ public:
             drawDivider(window, yPos); yPos += 8;
         }
 
-        // ============================================
-        // ALGORITHM KEYS
-        // ============================================
-       // ============================================
+// ============================================
 // ALGORITHM KEYS (mode-aware)
 // ============================================
-drawText(window, "RUN ALGORITHM", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+drawText(window, "PATHFINDING", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
 yPos += 13;
+
 if (currentGameMode == "PRESET") {
-    drawKeyBinding(window, "Q", "BFS", yPos, Colors::BFS_PATH); yPos += 22;
-    drawKeyBinding(window, "E", "DFS", yPos, Colors::DFS_PATH); yPos += 22;
-    drawKeyBinding(window, "R", "BFS + DFS race", yPos, sf::Color(200, 200, 100)); yPos += 22;
+    drawKeyBinding(window, "Q", "BFS", yPos, Colors::BFS_PATH); yPos += 20;
+    drawKeyBinding(window, "E", "DFS", yPos, Colors::DFS_PATH); yPos += 20;
+    drawKeyBinding(window, "T", "A*", yPos, Colors::ASTAR_PATH); yPos += 20;
+    drawKeyBinding(window, "Y", "Dijkstra", yPos, Colors::DIJKSTRA_PATH); yPos += 20;
+    drawKeyBinding(window, "U", "Greedy", yPos, Colors::GREEDY_PATH); yPos += 20;
+    drawKeyBinding(window, "O", "BiDir BFS", yPos, Colors::BIDIR_PATH); yPos += 20;
+    drawKeyBinding(window, "P", "IDDFS", yPos, sf::Color(180, 180, 200)); yPos += 20;
+    drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY); yPos += 16;
+    drawKeyBinding(window, "R", "BFS vs DFS", yPos, sf::Color(200,200,100)); yPos += 20;
+    drawKeyBinding(window, "Z", "A* vs BFS", yPos, sf::Color(150,200,200)); yPos += 20;
 } else {
-    drawKeyBinding(window, "1", "BFS", yPos, Colors::BFS_PATH); yPos += 22;
-    drawKeyBinding(window, "2", "DFS", yPos, Colors::DFS_PATH); yPos += 22;
-    drawKeyBinding(window, "3", "BFS + DFS race", yPos, sf::Color(200, 200, 100)); yPos += 22;
+    drawKeyBinding(window, "1", "BFS", yPos, Colors::BFS_PATH); yPos += 20;
+    drawKeyBinding(window, "2", "DFS", yPos, Colors::DFS_PATH); yPos += 20;
+    drawKeyBinding(window, "4", "A*", yPos, Colors::ASTAR_PATH); yPos += 20;
+    drawKeyBinding(window, "5", "Dijkstra", yPos, Colors::DIJKSTRA_PATH); yPos += 20;
+    drawKeyBinding(window, "6", "Greedy", yPos, Colors::GREEDY_PATH); yPos += 20;
+    drawKeyBinding(window, "7", "BiDir BFS", yPos, Colors::BIDIR_PATH); yPos += 20;
+    drawKeyBinding(window, "8", "IDDFS", yPos, sf::Color(180, 180, 200)); yPos += 20;
+    drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY); yPos += 16;
+    drawKeyBinding(window, "3", "BFS vs DFS", yPos, sf::Color(200,200,100)); yPos += 20;
+    drawKeyBinding(window, "9", "A* vs BFS", yPos, sf::Color(150,200,200)); yPos += 20;
 }
 
         drawDivider(window, yPos + 3); yPos += 12;
@@ -174,11 +186,15 @@ if (currentGameMode == "PRESET") {
 
         // Mode switching
         if (currentGameMode == "PRESET") {
-            drawText(window, "PRESETS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-            yPos += 13;
-            drawKeyBinding(window, "B", "Beginner", yPos); yPos += 22;
-            drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 22;
-            drawKeyBinding(window, "A", "Advanced", yPos); yPos += 22;
+            drawText(window, "DIFFICULTY", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+             yPos += 13;
+             drawKeyBinding(window, "B", "Beginner", yPos); yPos += 22;
+             drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 22;
+             drawKeyBinding(window, "A", "Advanced", yPos); yPos += 22;
+
+            drawText(window, "LEVELS", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            yPos += 16;
+            drawKeyBinding(window, "1-5", "Load level", yPos); yPos += 22;
         } else {
             drawText(window, "PLACEMENT KEYS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
             yPos += 13;
@@ -217,17 +233,32 @@ private:
         window.draw(line);
     }
 
-    void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
-                         const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
-        sf::RectangleShape kb(sf::Vector2f(32, 18));
-        kb.setPosition(MAZE_WIDTH + 20, y);
-        kb.setFillColor(accent.a > 0 ? accent : Colors::BUTTON_IDLE);
-        kb.setOutlineThickness(1);
-        kb.setOutlineColor(Colors::BORDER_LIGHT);
-        window.draw(kb);
-        drawText(window, key, MAZE_WIDTH + 27, y + 1, 12, Colors::TEXT_PRIMARY, true);
-        drawText(window, desc, MAZE_WIDTH + 60, y + 2, 12, Colors::TEXT_PRIMARY);
+   void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
+                     const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
+
+    // Key badge with DARK background (always readable)
+    sf::RectangleShape kb(sf::Vector2f(32, 18));
+    kb.setPosition(MAZE_WIDTH + 20, y);
+    kb.setFillColor(Colors::BG_DARK);   // dark background
+    kb.setOutlineThickness(1.5f);
+    kb.setOutlineColor(accent.a > 0 ? accent : Colors::BORDER_LIGHT);  // colored border
+    window.draw(kb);
+
+    // Colored accent strip on left of key (like a colored tab)
+    if (accent.a > 0) {
+        sf::RectangleShape strip(sf::Vector2f(3, 18));
+        strip.setPosition(MAZE_WIDTH + 20, y);
+        strip.setFillColor(accent);
+        window.draw(strip);
     }
+
+    // Key letter - always bright white/accent color
+    sf::Color keyTextColor = accent.a > 0 ? accent : Colors::TEXT_PRIMARY;
+    drawText(window, key, MAZE_WIDTH + 28, y + 1, 12, keyTextColor, true);
+
+    // Description
+    drawText(window, desc, MAZE_WIDTH + 60, y + 2, 12, Colors::TEXT_PRIMARY);
+}
 
     void drawAlgoBox(sf::RenderWindow& window, float y, const std::string& name,
                       int nodes, int pathLen, bool found, bool running, sf::Color color) {

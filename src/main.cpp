@@ -11,6 +11,11 @@
 #include "mazes/MazeLoader.h"
 #include "algorithms/BFSSolver.h"
 #include "algorithms/DFSSolver.h"
+#include "algorithms/AStarSolver.h"
+#include "algorithms/DijkstraSolver.h"
+#include "algorithms/GreedySolver.h"
+#include "algorithms/BidirectionalBFSSolver.h"
+#include "algorithms/IDDFSSolver.h"
 
 void mouseToGrid(int mouseX, int mouseY, int& row, int& col) {
     col = mouseX / CELL_SIZE;
@@ -63,11 +68,18 @@ int main() {
     auto algorithmStartTime = std::chrono::steady_clock::now();
 
     std::cout << "===================================" << std::endl;
-    std::cout << "  PathForge - Part 2 Ready!" << std::endl;
+    std::cout << "  PathForge - Part 3 Ready!" << std::endl;
     std::cout << "===================================" << std::endl;
-    std::cout << "Press 1 = BFS, 2 = DFS, 3 = BOTH" << std::endl;
-    std::cout << "Press +/- to control speed" << std::endl;
-    std::cout << "Press G between runs" << std::endl;
+    std::cout << "CUSTOM MODE keys:" << std::endl;
+    std::cout << "  1=BFS 2=DFS 3=Race(BFS+DFS)" << std::endl;
+    std::cout << "  4=A* 5=Dijkstra 6=Greedy" << std::endl;
+    std::cout << "  7=BiDir BFS 8=IDDFS 9=A* vs BFS" << std::endl;
+    std::cout << std::endl;
+    std::cout << "PRESET MODE keys:" << std::endl;
+    std::cout << "  1-5=Load level, Q=BFS E=DFS R=Race" << std::endl;
+    std::cout << "  T=A* Y=Dijkstra U=Greedy O=BiDir P=IDDFS Z=A* vs BFS" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Press +/- for speed, G to clear paths, C to clear all" << std::endl;
 
     auto applyMode = [&](int row, int col) {
         if (!grid.inBounds(row, col)) return;
@@ -95,49 +107,56 @@ int main() {
     // ============================================
     // ALGORITHM STARTERS
     // ============================================
-    auto startBFS = [&]() {
+    auto startAlgo = [&](std::unique_ptr<Solver> solver, const std::string& name) {
         if (!grid.hasStart() || !grid.hasEnd()) {
             std::cout << "\n[ERROR] Place both START and END first!" << std::endl;
             return;
         }
         grid.clearVisuals();
-        solver1 = std::make_unique<BFSSolver>(&grid);
+        solver1 = std::move(solver);
         solver2 = nullptr;
         isSolving = true;
         algorithmStartTime = std::chrono::steady_clock::now();
-        panel.setAlgo1("BFS", 0, 0, false, true);
+        panel.setAlgo1(name, 0, 0, false, true);
         panel.setAlgo2("", 0, 0, false, false);
-        std::cout << "\n>>> Running BFS..." << std::endl;
+        std::cout << "\n>>> Running " << name << "..." << std::endl;
     };
 
-    auto startDFS = [&]() {
+    auto startBFS      = [&]() { startAlgo(std::make_unique<BFSSolver>(&grid), "BFS"); };
+    auto startDFS      = [&]() { startAlgo(std::make_unique<DFSSolver>(&grid), "DFS"); };
+    auto startAStar    = [&]() { startAlgo(std::make_unique<AStarSolver>(&grid), "A*"); };
+    auto startDijkstra = [&]() { startAlgo(std::make_unique<DijkstraSolver>(&grid), "Dijkstra"); };
+    auto startGreedy   = [&]() { startAlgo(std::make_unique<GreedySolver>(&grid), "Greedy"); };
+    auto startBidir    = [&]() { startAlgo(std::make_unique<BidirectionalBFSSolver>(&grid), "BiDir BFS"); };
+    auto startIDDFS    = [&]() { startAlgo(std::make_unique<IDDFSSolver>(&grid), "IDDFS"); };
+
+    // Race any two algorithms
+    auto startRace = [&](std::unique_ptr<Solver> s1, std::unique_ptr<Solver> s2,
+                          const std::string& n1, const std::string& n2) {
         if (!grid.hasStart() || !grid.hasEnd()) {
             std::cout << "\n[ERROR] Place both START and END first!" << std::endl;
             return;
         }
         grid.clearVisuals();
-        solver1 = std::make_unique<DFSSolver>(&grid);
-        solver2 = nullptr;
+        solver1 = std::move(s1);
+        solver2 = std::move(s2);
         isSolving = true;
         algorithmStartTime = std::chrono::steady_clock::now();
-        panel.setAlgo1("DFS", 0, 0, false, true);
-        panel.setAlgo2("", 0, 0, false, false);
-        std::cout << "\n>>> Running DFS..." << std::endl;
+        panel.setAlgo1(n1, 0, 0, false, true);
+        panel.setAlgo2(n2, 0, 0, false, true);
+        std::cout << "\n>>> " << n1 << " vs " << n2 << " - RACE!" << std::endl;
     };
 
     auto startBoth = [&]() {
-        if (!grid.hasStart() || !grid.hasEnd()) {
-            std::cout << "\n[ERROR] Place both START and END first!" << std::endl;
-            return;
-        }
-        grid.clearVisuals();
-        solver1 = std::make_unique<BFSSolver>(&grid);
-        solver2 = std::make_unique<DFSSolver>(&grid);
-        isSolving = true;
-        algorithmStartTime = std::chrono::steady_clock::now();
-        panel.setAlgo1("BFS", 0, 0, false, true);
-        panel.setAlgo2("DFS", 0, 0, false, true);
-        std::cout << "\n>>> BFS vs DFS - RACE!" << std::endl;
+        startRace(std::make_unique<BFSSolver>(&grid),
+                  std::make_unique<DFSSolver>(&grid),
+                  "BFS", "DFS");
+    };
+
+    auto startAstarVsBfs = [&]() {
+        startRace(std::make_unique<AStarSolver>(&grid),
+                  std::make_unique<BFSSolver>(&grid),
+                  "A*", "BFS");
     };
 
     auto printResults = [](Solver* s, long long ms) {
@@ -149,6 +168,9 @@ int main() {
 
     panel.setSpeed(animationSpeed);
 
+    // ============================================
+    // MAIN LOOP
+    // ============================================
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -157,7 +179,9 @@ int main() {
                 window.close();
             }
 
-            // Startup screen
+            // ============================================
+            // STARTUP SCREEN
+            // ============================================
             if (appState == AppState::STARTUP) {
                 if (event.type == sf::Event::KeyPressed) {
                     if (event.key.code == sf::Keyboard::Num1) {
@@ -178,7 +202,9 @@ int main() {
                 continue;
             }
 
-            // Mouse
+            // ============================================
+            // MOUSE (Custom mode only for drawing)
+            // ============================================
             if (gameMode == GameMode::CUSTOM) {
                 if (event.type == sf::Event::MouseButtonPressed) {
                     if (event.mouseButton.x >= MAZE_WIDTH) continue;
@@ -217,9 +243,12 @@ int main() {
                 }
             }
 
-            // Keyboard
+            // ============================================
+            // KEYBOARD
+            // ============================================
             if (event.type == sf::Event::KeyPressed) {
-                // Mode toggle
+
+                // Mode toggle (works in both modes)
                 if (event.key.code == sf::Keyboard::M) {
                     if (gameMode == GameMode::CUSTOM) {
                         gameMode = GameMode::PRESET;
@@ -235,47 +264,59 @@ int main() {
                     }
                 }
 
-                // Algorithm keys
-                if (event.key.code == sf::Keyboard::Num1) {
-                    if (gameMode == GameMode::PRESET) loadPreset(currentDifficulty, 1);
-                    else startBFS();
-                }
-                if (event.key.code == sf::Keyboard::Num2) {
-                    if (gameMode == GameMode::PRESET) loadPreset(currentDifficulty, 2);
-                    else startDFS();
-                }
-                if (event.key.code == sf::Keyboard::Num3) {
-                    if (gameMode == GameMode::PRESET) loadPreset(currentDifficulty, 3);
-                    else startBoth();
-                }
-                if (event.key.code == sf::Keyboard::Num4 && gameMode == GameMode::PRESET) {
-                    loadPreset(currentDifficulty, 4);
-                }
-                if (event.key.code == sf::Keyboard::Num5 && gameMode == GameMode::PRESET) {
-                    loadPreset(currentDifficulty, 5);
-                }
-
-                // Alt way to run algorithms in preset mode: use different keys
-                if (gameMode == GameMode::PRESET) {
-                    if (event.key.code == sf::Keyboard::Q) startBFS();
-                    if (event.key.code == sf::Keyboard::E) startDFS();
-                    if (event.key.code == sf::Keyboard::R) startBoth();
-                }
-
-                // Custom mode placement
+                // ============================================
+                // CUSTOM MODE KEYS
+                // ============================================
                 if (gameMode == GameMode::CUSTOM) {
+                    // Placement tools
                     if (event.key.code == sf::Keyboard::W) { currentMode = PlaceMode::WALL; panel.setMode("WALL"); }
                     if (event.key.code == sf::Keyboard::S) { currentMode = PlaceMode::START; panel.setMode("START"); }
                     if (event.key.code == sf::Keyboard::E) { currentMode = PlaceMode::END; panel.setMode("END"); }
                     if (event.key.code == sf::Keyboard::X) { currentMode = PlaceMode::ERASE; panel.setMode("ERASE"); }
+
+                    // Algorithms (number keys)
+                    if (event.key.code == sf::Keyboard::Num1) startBFS();
+                    if (event.key.code == sf::Keyboard::Num2) startDFS();
+                    if (event.key.code == sf::Keyboard::Num3) startBoth();
+                    if (event.key.code == sf::Keyboard::Num4) startAStar();
+                    if (event.key.code == sf::Keyboard::Num5) startDijkstra();
+                    if (event.key.code == sf::Keyboard::Num6) startGreedy();
+                    if (event.key.code == sf::Keyboard::Num7) startBidir();
+                    if (event.key.code == sf::Keyboard::Num8) startIDDFS();
+                    if (event.key.code == sf::Keyboard::Num9) startAstarVsBfs();
                 }
 
-                // Preset difficulty
+                // ============================================
+                // PRESET MODE KEYS
+                // ============================================
                 if (gameMode == GameMode::PRESET) {
+                    // Difficulty selection
                     if (event.key.code == sf::Keyboard::B) { currentDifficulty = Difficulty::BEGINNER; loadPreset(currentDifficulty, currentLevel); }
                     if (event.key.code == sf::Keyboard::I) { currentDifficulty = Difficulty::INTERMEDIATE; loadPreset(currentDifficulty, currentLevel); }
                     if (event.key.code == sf::Keyboard::A) { currentDifficulty = Difficulty::ADVANCED; loadPreset(currentDifficulty, currentLevel); }
+
+                    // Level loading (number keys 1-5)
+                    if (event.key.code == sf::Keyboard::Num1) loadPreset(currentDifficulty, 1);
+                    if (event.key.code == sf::Keyboard::Num2) loadPreset(currentDifficulty, 2);
+                    if (event.key.code == sf::Keyboard::Num3) loadPreset(currentDifficulty, 3);
+                    if (event.key.code == sf::Keyboard::Num4) loadPreset(currentDifficulty, 4);
+                    if (event.key.code == sf::Keyboard::Num5) loadPreset(currentDifficulty, 5);
+
+                    // Algorithms (letter keys)
+                    if (event.key.code == sf::Keyboard::Q) startBFS();
+                    if (event.key.code == sf::Keyboard::E) startDFS();
+                    if (event.key.code == sf::Keyboard::R) startBoth();
+                    if (event.key.code == sf::Keyboard::T) startAStar();
+                    if (event.key.code == sf::Keyboard::Y) startDijkstra();
+                    if (event.key.code == sf::Keyboard::U) startGreedy();
+                    if (event.key.code == sf::Keyboard::O) startBidir();
+                    if (event.key.code == sf::Keyboard::P) startIDDFS();
+                    if (event.key.code == sf::Keyboard::Z) startAstarVsBfs();
                 }
+
+                // ============================================
+                // COMMON KEYS (both modes)
+                // ============================================
 
                 // Speed
                 if (event.key.code == sf::Keyboard::Add || event.key.code == sf::Keyboard::Equal) {
@@ -304,65 +345,68 @@ int main() {
             }
         }
 
-       if (isSolving) {
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastStepTime).count();
+        // ============================================
+        // ALGORITHM STEP (Timed with turbo mode)
+        // ============================================
+        if (isSolving) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastStepTime).count();
 
-    if (elapsed >= animationSpeed) {
-        lastStepTime = now;
+            if (elapsed >= animationSpeed) {
+                lastStepTime = now;
 
-        // Calculate how many steps to run this frame based on speed
-        // At speed=1 we run many steps per frame (turbo mode)
-        // At speed=200 we run just 1 step per frame (slow motion)
-        int stepsThisFrame = 1;
-        if (animationSpeed <= 1)       stepsThisFrame = 20;
-        else if (animationSpeed <= 3)  stepsThisFrame = 10;
-        else if (animationSpeed <= 5)  stepsThisFrame = 5;
-        else if (animationSpeed <= 10) stepsThisFrame = 3;
-        else if (animationSpeed <= 20) stepsThisFrame = 2;
+                // Turbo mode: run multiple steps per frame at high speed
+                int stepsThisFrame = 1;
+                if (animationSpeed <= 1)       stepsThisFrame = 20;
+                else if (animationSpeed <= 3)  stepsThisFrame = 10;
+                else if (animationSpeed <= 5)  stepsThisFrame = 5;
+                else if (animationSpeed <= 10) stepsThisFrame = 3;
+                else if (animationSpeed <= 20) stepsThisFrame = 2;
 
-        bool anyActive = false;
+                bool anyActive = false;
 
-        for (int s = 0; s < stepsThisFrame; s++) {
-            bool stepped = false;
+                for (int s = 0; s < stepsThisFrame; s++) {
+                    bool stepped = false;
 
-            if (solver1 && !solver1->isFinished()) {
-                solver1->step();
-                stepped = true;
-                anyActive = true;
+                    if (solver1 && !solver1->isFinished()) {
+                        solver1->step();
+                        stepped = true;
+                        anyActive = true;
+                    }
+                    if (solver2 && !solver2->isFinished()) {
+                        solver2->step();
+                        stepped = true;
+                        anyActive = true;
+                    }
+
+                    if (!stepped) break;
+                }
+
+                // Update panel stats
+                if (solver1) {
+                    panel.setAlgo1(solver1->getName(), solver1->getNodesExplored(),
+                                   solver1->getPathLength(), solver1->hasPath(), !solver1->isFinished());
+                }
+                if (solver2) {
+                    panel.setAlgo2(solver2->getName(), solver2->getNodesExplored(),
+                                   solver2->getPathLength(), solver2->hasPath(), !solver2->isFinished());
+                }
+
+                if (!anyActive) {
+                    isSolving = false;
+                    auto end = std::chrono::steady_clock::now();
+                    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - algorithmStartTime).count();
+                    std::cout << "\n--- ALGORITHM RESULTS ---" << std::endl;
+                    if (solver1) printResults(solver1.get(), ms);
+                    if (solver2) printResults(solver2.get(), ms);
+                    std::cout << "-------------------------" << std::endl;
+                }
             }
-            if (solver2 && !solver2->isFinished()) {
-                solver2->step();
-                stepped = true;
-                anyActive = true;
-            }
-
-            if (!stepped) break;
         }
 
-        // Update panel stats
-        if (solver1) {
-            panel.setAlgo1(solver1->getName(), solver1->getNodesExplored(),
-                           solver1->getPathLength(), solver1->hasPath(), !solver1->isFinished());
-        }
-        if (solver2) {
-            panel.setAlgo2(solver2->getName(), solver2->getNodesExplored(),
-                           solver2->getPathLength(), solver2->hasPath(), !solver2->isFinished());
-        }
-
-        if (!anyActive) {
-            isSolving = false;
-            auto end = std::chrono::steady_clock::now();
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - algorithmStartTime).count();
-            std::cout << "\n--- ALGORITHM RESULTS ---" << std::endl;
-            if (solver1) printResults(solver1.get(), ms);
-            if (solver2) printResults(solver2.get(), ms);
-            std::cout << "-------------------------" << std::endl;
-        }
-    }
-}
-
-        // Render
+        // ============================================
+        // RENDER
+        // ============================================
         window.clear(Colors::BG_DARK);
         if (appState == AppState::STARTUP) {
             static sf::Clock animClock;
