@@ -15,15 +15,28 @@ private:
     std::string currentDifficulty = "";
     int currentLevel = 0;
 
+    // Algorithm stats
+    std::string algo1Name = "";
+    int algo1Nodes = 0;
+    int algo1PathLen = 0;
+    bool algo1Found = false;
+    bool algo1Running = false;
+
+    std::string algo2Name = "";
+    int algo2Nodes = 0;
+    int algo2PathLen = 0;
+    bool algo2Found = false;
+    bool algo2Running = false;
+
+    int animationSpeed = 20;
+
 public:
     bool loadFont() {
         std::vector<std::string> fontPaths = {
             "assets/fonts/arial.ttf",
             "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/segoeui.ttf",
-            "C:/Windows/Fonts/consola.ttf"
+            "C:/Windows/Fonts/segoeui.ttf"
         };
-
         for (const auto& path : fontPaths) {
             if (font.loadFromFile(path)) {
                 fontLoaded = true;
@@ -41,6 +54,23 @@ public:
         currentPresetName = name;
     }
 
+    void setAlgo1(const std::string& name, int nodes, int pathLen, bool found, bool running) {
+        algo1Name = name; algo1Nodes = nodes; algo1PathLen = pathLen;
+        algo1Found = found; algo1Running = running;
+    }
+
+    void setAlgo2(const std::string& name, int nodes, int pathLen, bool found, bool running) {
+        algo2Name = name; algo2Nodes = nodes; algo2PathLen = pathLen;
+        algo2Found = found; algo2Running = running;
+    }
+
+    void clearAlgoStats() {
+        algo1Name = ""; algo2Name = "";
+        algo1Running = false; algo2Running = false;
+    }
+
+    void setSpeed(int speed) { animationSpeed = speed; }
+
     void render(sf::RenderWindow& window) {
         // Panel background
         sf::RectangleShape panel(sf::Vector2f(UI_PANEL_WIDTH, WINDOW_HEIGHT));
@@ -56,82 +86,115 @@ public:
         if (!fontLoaded) return;
 
         // Title
-        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 15, 22, Colors::TEXT_PRIMARY, true);
-        drawText(window, "Pathfinding Engine", MAZE_WIDTH + 20, 42, 11, Colors::TEXT_SECONDARY);
+        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 12, 20, Colors::TEXT_PRIMARY, true);
 
-        drawDivider(window, 68);
+        int yPos = 42;
+        drawDivider(window, yPos); yPos += 8;
 
         // Game Mode
-        drawText(window, "GAME MODE", MAZE_WIDTH + 20, 78, 10, Colors::TEXT_SECONDARY);
-        sf::RectangleShape gameModeBadge(sf::Vector2f(UI_PANEL_WIDTH - 40, 28));
-        gameModeBadge.setPosition(MAZE_WIDTH + 20, 92);
-        gameModeBadge.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
-        window.draw(gameModeBadge);
-        drawText(window, currentGameMode, MAZE_WIDTH + 30, 96, 15, Colors::TEXT_PRIMARY, true);
+        drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        yPos += 12;
+        sf::RectangleShape gm(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
+        gm.setPosition(MAZE_WIDTH + 20, yPos);
+        gm.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
+        window.draw(gm);
+        drawText(window, currentGameMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+        yPos += 30;
 
-        // Show preset info if in preset mode
-        int yPos = 130;
+        // Preset info
         if (currentGameMode == "PRESET" && !currentPresetName.empty()) {
-            drawText(window, currentDifficulty + "  LEVEL " + std::to_string(currentLevel),
-                     MAZE_WIDTH + 20, yPos, 11, Colors::TEXT_ACCENT);
-            drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos + 15, 13, Colors::TEXT_PRIMARY, true);
-            yPos += 45;
+            drawText(window, currentDifficulty + " L" + std::to_string(currentLevel),
+                     MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
+            yPos += 12;
+            drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos, 12, Colors::TEXT_PRIMARY, true);
+            yPos += 20;
         }
 
-        drawDivider(window, yPos);
-        yPos += 10;
+        drawDivider(window, yPos); yPos += 8;
 
-        // Current placement mode (only relevant for custom)
-        drawText(window, "PLACEMENT MODE", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
-        yPos += 14;
-        sf::RectangleShape modeBadge(sf::Vector2f(UI_PANEL_WIDTH - 40, 28));
-        modeBadge.setPosition(MAZE_WIDTH + 20, yPos);
-        modeBadge.setFillColor(getModeColor());
-        window.draw(modeBadge);
-        drawText(window, currentMode, MAZE_WIDTH + 30, yPos + 4, 15, Colors::TEXT_PRIMARY, true);
-        yPos += 40;
+        // ============================================
+        // ALGORITHM STATS (when running)
+        // ============================================
+        if (!algo1Name.empty() || !algo2Name.empty()) {
+            drawText(window, "ALGORITHM STATS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            yPos += 15;
 
-        drawDivider(window, yPos);
-        yPos += 10;
+            if (!algo1Name.empty()) {
+                drawAlgoBox(window, yPos, algo1Name, algo1Nodes, algo1PathLen, algo1Found, algo1Running, getAlgoColor(algo1Name));
+                yPos += 78;
+            }
+            if (!algo2Name.empty()) {
+                drawAlgoBox(window, yPos, algo2Name, algo2Nodes, algo2PathLen, algo2Found, algo2Running, getAlgoColor(algo2Name));
+                yPos += 78;
+            }
 
-        // Game mode switch
-        drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
+            drawDivider(window, yPos); yPos += 8;
+        }
+
+        // Placement Mode (Custom only)
+        if (currentGameMode == "CUSTOM") {
+            drawText(window, "PLACEMENT", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            yPos += 12;
+            sf::RectangleShape mb(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
+            mb.setPosition(MAZE_WIDTH + 20, yPos);
+            mb.setFillColor(getModeColor());
+            window.draw(mb);
+            drawText(window, currentMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+            yPos += 30;
+            drawDivider(window, yPos); yPos += 8;
+        }
+
+        // ============================================
+        // ALGORITHM KEYS
+        // ============================================
+       // ============================================
+// ALGORITHM KEYS (mode-aware)
+// ============================================
+drawText(window, "RUN ALGORITHM", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+yPos += 13;
+if (currentGameMode == "PRESET") {
+    drawKeyBinding(window, "Q", "BFS", yPos, Colors::BFS_PATH); yPos += 22;
+    drawKeyBinding(window, "E", "DFS", yPos, Colors::DFS_PATH); yPos += 22;
+    drawKeyBinding(window, "R", "BFS + DFS race", yPos, sf::Color(200, 200, 100)); yPos += 22;
+} else {
+    drawKeyBinding(window, "1", "BFS", yPos, Colors::BFS_PATH); yPos += 22;
+    drawKeyBinding(window, "2", "DFS", yPos, Colors::DFS_PATH); yPos += 22;
+    drawKeyBinding(window, "3", "BFS + DFS race", yPos, sf::Color(200, 200, 100)); yPos += 22;
+}
+
+        drawDivider(window, yPos + 3); yPos += 12;
+
+        // Speed
+        drawText(window, "SPEED: " + std::to_string(animationSpeed) + "ms", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
         yPos += 15;
-        drawKeyBinding(window, "M", "Toggle Custom/Preset", yPos); yPos += 24;
+        drawKeyBinding(window, "+", "Faster", yPos); yPos += 22;
+        drawKeyBinding(window, "-", "Slower", yPos); yPos += 22;
 
-        drawDivider(window, yPos + 5);
-        yPos += 15;
+        drawDivider(window, yPos + 3); yPos += 12;
 
-        // Preset selection
-        drawText(window, "PRESETS (in Preset mode)", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
-        yPos += 15;
-        drawKeyBinding(window, "B", "Beginner", yPos); yPos += 24;
-        drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 24;
-        drawKeyBinding(window, "A", "Advanced", yPos); yPos += 24;
-        drawKeyBinding(window, "1-5", "Level 1-5", yPos); yPos += 24;
+        // Mode switching
+        if (currentGameMode == "PRESET") {
+            drawText(window, "PRESETS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            yPos += 13;
+            drawKeyBinding(window, "B", "Beginner", yPos); yPos += 22;
+            drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 22;
+            drawKeyBinding(window, "A", "Advanced", yPos); yPos += 22;
+        } else {
+            drawText(window, "PLACEMENT KEYS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            yPos += 13;
+            drawKeyBinding(window, "W", "Wall", yPos); yPos += 22;
+            drawKeyBinding(window, "S", "Start", yPos); yPos += 22;
+            drawKeyBinding(window, "E", "End", yPos); yPos += 22;
+        }
 
-        drawDivider(window, yPos + 5);
-        yPos += 15;
+        // Commands (always at bottom)
+        drawText(window, "COMMANDS", MAZE_WIDTH + 20, WINDOW_HEIGHT - 90, 9, Colors::TEXT_SECONDARY);
+        drawKeyBinding(window, "G", "Clear paths", WINDOW_HEIGHT - 75);
+        drawKeyBinding(window, "C", "Clear all", WINDOW_HEIGHT - 53);
+        drawKeyBinding(window, "M", "Switch mode", WINDOW_HEIGHT - 31);
 
-        // Placement keys
-        drawText(window, "PLACEMENT (Custom mode)", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
-        yPos += 15;
-        drawKeyBinding(window, "W", "Wall", yPos); yPos += 24;
-        drawKeyBinding(window, "S", "Start", yPos); yPos += 24;
-        drawKeyBinding(window, "E", "End", yPos); yPos += 24;
-        drawKeyBinding(window, "X", "Erase", yPos); yPos += 24;
-
-        drawDivider(window, yPos + 5);
-        yPos += 15;
-
-        // Commands
-        drawText(window, "COMMANDS", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_SECONDARY);
-        yPos += 15;
-        drawKeyBinding(window, "C", "Clear all", yPos); yPos += 24;
-        drawKeyBinding(window, "G", "Clear paths", yPos); yPos += 24;
-
-        // Footer
-        drawText(window, "v1.5 | Part 1.5", MAZE_WIDTH + 20, WINDOW_HEIGHT - 25, 10, Colors::TEXT_SECONDARY);
+        // Version
+        drawText(window, "v2.0", MAZE_WIDTH + UI_PANEL_WIDTH - 40, WINDOW_HEIGHT - 15, 9, Colors::TEXT_SECONDARY);
     }
 
 private:
@@ -155,16 +218,46 @@ private:
     }
 
     void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
-                         const std::string& desc, float y) {
-        sf::RectangleShape keyBadge(sf::Vector2f(38, 20));
-        keyBadge.setPosition(MAZE_WIDTH + 20, y);
-        keyBadge.setFillColor(Colors::BUTTON_IDLE);
-        keyBadge.setOutlineThickness(1);
-        keyBadge.setOutlineColor(Colors::BORDER_LIGHT);
-        window.draw(keyBadge);
+                         const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
+        sf::RectangleShape kb(sf::Vector2f(32, 18));
+        kb.setPosition(MAZE_WIDTH + 20, y);
+        kb.setFillColor(accent.a > 0 ? accent : Colors::BUTTON_IDLE);
+        kb.setOutlineThickness(1);
+        kb.setOutlineColor(Colors::BORDER_LIGHT);
+        window.draw(kb);
+        drawText(window, key, MAZE_WIDTH + 27, y + 1, 12, Colors::TEXT_PRIMARY, true);
+        drawText(window, desc, MAZE_WIDTH + 60, y + 2, 12, Colors::TEXT_PRIMARY);
+    }
 
-        drawText(window, key, MAZE_WIDTH + 25, y + 2, 12, Colors::TEXT_ACCENT, true);
-        drawText(window, desc, MAZE_WIDTH + 68, y + 3, 12, Colors::TEXT_PRIMARY);
+    void drawAlgoBox(sf::RenderWindow& window, float y, const std::string& name,
+                      int nodes, int pathLen, bool found, bool running, sf::Color color) {
+        // Box
+        sf::RectangleShape box(sf::Vector2f(UI_PANEL_WIDTH - 40, 70));
+        box.setPosition(MAZE_WIDTH + 20, y);
+        box.setFillColor(Colors::BG_DARK);
+        box.setOutlineThickness(1);
+        box.setOutlineColor(color);
+        window.draw(box);
+
+        // Color strip on left
+        sf::RectangleShape strip(sf::Vector2f(4, 70));
+        strip.setPosition(MAZE_WIDTH + 20, y);
+        strip.setFillColor(color);
+        window.draw(strip);
+
+        // Name + status
+        drawText(window, name, MAZE_WIDTH + 32, y + 6, 14, Colors::TEXT_PRIMARY, true);
+
+        std::string status = running ? "RUNNING..." : (found ? "PATH FOUND" : "NO PATH");
+        sf::Color statusCol = running ? Colors::TEXT_ACCENT : (found ? Colors::START : Colors::END);
+        drawText(window, status, MAZE_WIDTH + UI_PANEL_WIDTH - 100, y + 8, 10, statusCol, true);
+
+        // Stats
+        drawText(window, "Nodes:", MAZE_WIDTH + 32, y + 28, 11, Colors::TEXT_SECONDARY);
+        drawText(window, std::to_string(nodes), MAZE_WIDTH + 90, y + 28, 11, Colors::TEXT_PRIMARY, true);
+
+        drawText(window, "Path:", MAZE_WIDTH + 32, y + 46, 11, Colors::TEXT_SECONDARY);
+        drawText(window, std::to_string(pathLen) + " cells", MAZE_WIDTH + 90, y + 46, 11, Colors::TEXT_PRIMARY, true);
     }
 
     sf::Color getModeColor() {
@@ -173,5 +266,11 @@ private:
         if (currentMode == "END")   return sf::Color(255, 71, 87);
         if (currentMode == "ERASE") return sf::Color(120, 120, 130);
         return Colors::BUTTON_IDLE;
+    }
+
+    sf::Color getAlgoColor(const std::string& name) {
+        if (name == "BFS") return Colors::BFS_PATH;
+        if (name == "DFS") return Colors::DFS_PATH;
+        return Colors::TEXT_ACCENT;
     }
 };

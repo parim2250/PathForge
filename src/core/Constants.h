@@ -62,7 +62,8 @@ enum class VisualState {
     PATH_DIJKSTRA,
     PATH_GREEDY,
     PATH_BIDIR,
-    PATH_QLEARN
+    PATH_QLEARN,
+    PATH_OVERLAP
 };
 
 // ============================================

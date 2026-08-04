@@ -139,4 +139,19 @@ public:
     // ============================================
     int getRows() const { return ROWS; }
     int getCols() const { return COLS; }
+
+    // ============================================
+    // GET ALL WALKABLE NEIGHBORS
+    // ============================================
+    std::vector<std::pair<int,int>> getNeighbors(int row, int col) const {
+        std::vector<std::pair<int,int>> neighbors;
+        for (int i = 0; i < 4; i++) {
+            int nr = row + DR[i];
+            int nc = col + DC[i];
+            if (inBounds(nr, nc) && cells[nr][nc].isWalkable()) {
+                neighbors.push_back({nr, nc});
+            }
+        }
+        return neighbors;
+    }
 };
