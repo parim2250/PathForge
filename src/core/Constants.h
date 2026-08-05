@@ -120,6 +120,13 @@ enum class Difficulty {
 };
 
 const int MAZES_PER_DIFFICULTY = 5;
+// ============================================
+// TERRAIN COSTS
+// ============================================
+const int COST_EMPTY = 1;    // normal path
+const int COST_SAND  = 3;    // slow
+const int COST_WATER = 5;    // slower
+const int COST_MUD   = 8;    // slowest
 
 // ============================================
 // MOVEMENT DIRECTIONS (4-directional)
