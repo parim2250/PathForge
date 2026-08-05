@@ -135,11 +135,12 @@ private:
         }
 
         // PRIORITY 9: Terrain (skip MUD to avoid brown - use custom colors only)
-        sf::Color terrainColor = getTerrainColor(cell);
-        if (terrainColor.a > 0) {
-            drawFilledCell(window, x, y, size, terrainColor);
-            return;
-        }
+        // PRIORITY 9: Terrain (with cost indicator dots)
+sf::Color terrainColor = getTerrainColor(cell);
+if (terrainColor.a > 0) {
+    drawTerrainCell(window, x, y, size, terrainColor, cell.cost);
+    return;
+}
 
         // PRIORITY 10: Empty (with hover)
         sf::Color cellColor = isHovered ? Colors::EMPTY_HOVER : Colors::EMPTY;
@@ -211,11 +212,37 @@ private:
     }
 
     sf::Color getTerrainColor(const Cell& cell) {
-        switch (cell.terrain) {
-            case Terrain::SAND:  return Colors::SAND;
-            case Terrain::WATER: return Colors::WATER;
-            case Terrain::MUD:   return Colors::MUD;
-            default: return sf::Color(0, 0, 0, 0);
-        }
+    switch (cell.terrain) {
+        case Terrain::SAND:  return Colors::SAND;
+        case Terrain::WATER: return Colors::WATER;
+        case Terrain::MUD:   return Colors::MUD;
+        default: return sf::Color(0, 0, 0, 0);
     }
+}
+
+// ============================================
+// DRAW TERRAIN CELL WITH COST DOTS
+// ============================================
+void drawTerrainCell(sf::RenderWindow& window, float x, float y, float size,
+                      sf::Color color, int cost) {
+    // Main terrain color
+    sf::RectangleShape rect(sf::Vector2f(size, size));
+    rect.setPosition(x, y);
+    rect.setFillColor(color);
+    window.draw(rect);
+
+    // Draw small dots to indicate cost (1 dot per cost level, up to 3)
+    int dots = std::min(cost - 1, 3);  // sand=2 dots, water=4 dots (max 3), mud=3 dots
+    float dotSize = 2.5f;
+    float dotSpacing = 4.0f;
+    float startX = x + size / 2 - ((dots - 1) * dotSpacing) / 2;
+    float dotY = y + size - 6;
+
+    for (int i = 0; i < dots; i++) {
+        sf::CircleShape dot(dotSize);
+        dot.setPosition(startX + i * dotSpacing - dotSize, dotY);
+        dot.setFillColor(sf::Color(255, 255, 255, 180));
+        window.draw(dot);
+    }
+}
 };
