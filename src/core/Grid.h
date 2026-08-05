@@ -89,27 +89,27 @@ public:
     // WALL MANAGEMENT
     // ============================================
     void toggleWall(int row, int col) {
-        if (!inBounds(row, col)) return;
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
 
-        Cell& cell = cells[row][col];
-
-        // Do not overwrite start or end
-        if (cell.isStart() || cell.isEnd()) return;
-
-        if (cell.terrain == Terrain::WALL) {
-            cell.terrain = Terrain::EMPTY;
-        } else {
-            cell.terrain = Terrain::WALL;
-        }
+    if (cell.terrain == Terrain::WALL) {
+        cell.terrain = Terrain::EMPTY;
+        cell.cost = COST_EMPTY;
+    } else {
+        cell.terrain = Terrain::WALL;
+        cell.cost = COST_EMPTY;
     }
+}
 
     // Set a wall directly (used for click-and-drag)
     void setWall(int row, int col) {
-        if (!inBounds(row, col)) return;
-        Cell& cell = cells[row][col];
-        if (cell.isStart() || cell.isEnd()) return;
-        cell.terrain = Terrain::WALL;
-    }
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
+    cell.terrain = Terrain::WALL;
+    cell.cost = COST_EMPTY;  // walls have no cost (can't walk anyway)
+}
 
     // ============================================
     // CLEAR OPERATIONS
@@ -154,4 +154,40 @@ public:
         }
         return neighbors;
     }
+
+    // ============================================
+// TERRAIN MANAGEMENT
+// ============================================
+void setSand(int row, int col) {
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
+    cell.terrain = Terrain::SAND;
+    cell.cost = COST_SAND;
+}
+
+void setWater(int row, int col) {
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
+    cell.terrain = Terrain::WATER;
+    cell.cost = COST_WATER;
+}
+
+void setMud(int row, int col) {
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
+    cell.terrain = Terrain::MUD;
+    cell.cost = COST_MUD;
+}
+
+// Reset cell to normal empty (from terrain)
+void setEmpty(int row, int col) {
+    if (!inBounds(row, col)) return;
+    Cell& cell = cells[row][col];
+    if (cell.isStart() || cell.isEnd()) return;
+    cell.terrain = Terrain::EMPTY;
+    cell.cost = COST_EMPTY;
+}
 };
