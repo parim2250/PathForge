@@ -34,20 +34,20 @@ public:
     bool isFrontier;
     int cost;
 
-    Cell(int r = 0, int c = 0)
-        : row(r), col(c),
-          terrain(Terrain::EMPTY),
-          visualState(VisualState::NONE),
-          bfsVisited(false), dfsVisited(false),
-          astarVisited(false), dijkstraVisited(false),
-          greedyVisited(false), bidirVisited(false),
-          bfsPath(false), dfsPath(false),
-          astarPath(false), dijkstraPath(false),
-          greedyPath(false), bidirPath(false),
-          qlearnPath(false),
-          isFrontier(false),
-          cost(1)
-    {}
+Cell(int r = 0, int c = 0)
+    : row(r), col(c),
+      terrain(Terrain::EMPTY),
+      visualState(VisualState::NONE),
+      bfsVisited(false), dfsVisited(false),
+      astarVisited(false), dijkstraVisited(false),
+      greedyVisited(false), bidirVisited(false),
+      bfsPath(false), dfsPath(false),
+      astarPath(false), dijkstraPath(false),
+      greedyPath(false), bidirPath(false),
+      qlearnPath(false),
+      isFrontier(false),
+      cost(COST_EMPTY)
+{}
 
     bool isWalkable() const { return terrain != Terrain::WALL; }
     bool isStart() const { return terrain == Terrain::START; }
@@ -67,8 +67,8 @@ public:
 
     // Complete reset
     void reset() {
-        terrain = Terrain::EMPTY;
-        resetVisual();
-        cost = 1;
-    }
+    terrain = Terrain::EMPTY;
+    resetVisual();
+    cost = COST_EMPTY;
+}
 };
