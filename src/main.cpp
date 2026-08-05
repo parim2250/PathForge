@@ -22,7 +22,7 @@ void mouseToGrid(int mouseX, int mouseY, int& row, int& col) {
     row = mouseY / CELL_SIZE;
 }
 
-enum class PlaceMode { WALL, START, END, ERASE };
+enum class PlaceMode { WALL, START, END, ERASE, SAND, WATER, MUD };
 enum class AppState { STARTUP, RUNNING };
 
 std::string modeToString(PlaceMode mode) {
@@ -31,6 +31,9 @@ std::string modeToString(PlaceMode mode) {
         case PlaceMode::START: return "START";
         case PlaceMode::END:   return "END";
         case PlaceMode::ERASE: return "ERASE";
+        case PlaceMode::SAND:  return "SAND";
+        case PlaceMode::WATER: return "WATER";
+        case PlaceMode::MUD:   return "MUD";
     }
     return "WALL";
 }
@@ -81,18 +84,18 @@ int main() {
     std::cout << std::endl;
     std::cout << "Press +/- for speed, G to clear paths, C to clear all" << std::endl;
 
-    auto applyMode = [&](int row, int col) {
-        if (!grid.inBounds(row, col)) return;
-        switch (currentMode) {
-            case PlaceMode::WALL:  grid.setWall(row, col); break;
-            case PlaceMode::START: grid.setStart(row, col); break;
-            case PlaceMode::END:   grid.setEnd(row, col); break;
-            case PlaceMode::ERASE:
-                Cell& cell = grid.getCell(row, col);
-                if (!cell.isStart() && !cell.isEnd()) cell.terrain = Terrain::EMPTY;
-                break;
-        }
-    };
+   auto applyMode = [&](int row, int col) {
+    if (!grid.inBounds(row, col)) return;
+    switch (currentMode) {
+        case PlaceMode::WALL:  grid.setWall(row, col); break;
+        case PlaceMode::START: grid.setStart(row, col); break;
+        case PlaceMode::END:   grid.setEnd(row, col); break;
+        case PlaceMode::ERASE: grid.setEmpty(row, col); break;
+        case PlaceMode::SAND:  grid.setSand(row, col); break;
+        case PlaceMode::WATER: grid.setWater(row, col); break;
+        case PlaceMode::MUD:   grid.setMud(row, col); break;
+    }
+};
 
     auto loadPreset = [&](Difficulty diff, int level) {
         MazeLoader::loadPreset(grid, diff, level);
@@ -273,6 +276,11 @@ int main() {
                     if (event.key.code == sf::Keyboard::S) { currentMode = PlaceMode::START; panel.setMode("START"); }
                     if (event.key.code == sf::Keyboard::E) { currentMode = PlaceMode::END; panel.setMode("END"); }
                     if (event.key.code == sf::Keyboard::X) { currentMode = PlaceMode::ERASE; panel.setMode("ERASE"); }
+                    // Terrain tools
+                    if (event.key.code == sf::Keyboard::F) { currentMode = PlaceMode::SAND; panel.setMode("SAND"); }
+                    if (event.key.code == sf::Keyboard::V) { currentMode = PlaceMode::WATER; panel.setMode("WATER"); }
+                    if (event.key.code == sf::Keyboard::D) { currentMode = PlaceMode::MUD; panel.setMode("MUD"); }
+
 
                     // Algorithms (number keys)
                     if (event.key.code == sf::Keyboard::Num1) startBFS();
