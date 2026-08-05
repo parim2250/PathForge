@@ -27,11 +27,11 @@ public:
         };
 
         static const MazeInfo intermediateInfo[5] = {
-            {"Serpentine",      "Zigzag walls force a winding path"},
-            {"Four Chambers",   "Four rooms connected by narrow doors"},
-            {"Cross Maze",      "Cross-shaped barriers create decisions"},
-            {"Comb Structure",  "Comb-like walls with dead ends"},
-            {"Dual Spiral",     "Twin spirals - watch algorithms explore"}
+            {"Serpentine",       "Zigzag walls force a winding path"},
+            {"Four Chambers",    "Four rooms connected by narrow doors"},
+            {"River Crossing",   "Water blocks direct path (weighted!)"},
+            {"Sandy Desert",     "Sand slows you down (Dijkstra/A* excel)"},
+            {"Muddy Swamp",      "Mud is expensive - find the smart path"}
         };
 
         static const MazeInfo advancedInfo[5] = {
@@ -143,7 +143,7 @@ private:
 
         switch (level) {
             case 1: {
-                // Serpentine - 5 alternating horizontal walls
+                // Serpentine
                 for (int i = 1; i <= 5; i++) {
                     int row = i * (ROWS / 6);
                     if (i % 2 == 1) drawHWall(grid, row, 1, COLS - 8);
@@ -159,7 +159,6 @@ private:
                 int midC = COLS / 2;
                 drawHWall(grid, midR, 1, COLS - 2);
                 drawVWall(grid, midC, 1, ROWS - 2);
-                // Doors
                 grid.getCell(midR, COLS / 4).terrain = Terrain::EMPTY;
                 grid.getCell(midR, COLS / 4 + 1).terrain = Terrain::EMPTY;
                 grid.getCell(midR, 3 * COLS / 4).terrain = Terrain::EMPTY;
@@ -173,62 +172,45 @@ private:
                 break;
             }
             case 3: {
-                // Cross Maze - + shaped walls
-                int midR = ROWS / 2;
-                int midC = COLS / 2;
-                drawHWall(grid, midR, 3, midC - 3);
-                drawHWall(grid, midR, midC + 3, COLS - 4);
-                drawVWall(grid, midC, 3, midR - 3);
-                drawVWall(grid, midC, midR + 3, ROWS - 4);
-                // Second cross
-                drawHWall(grid, ROWS / 4, midC / 2, midC + midC / 2);
-                drawVWall(grid, COLS / 4, ROWS / 4 - 3, ROWS / 4 + 3);
+                // River Crossing - horizontal river of water in middle
+                int riverRow = ROWS / 2;
+                for (int c = 1; c < COLS - 1; c++) {
+                    grid.setWater(riverRow, c);
+                    grid.setWater(riverRow + 1, c);
+                }
+                // Small bridge (empty cells) at one spot
+                grid.setEmpty(riverRow, COLS / 4);
+                grid.setEmpty(riverRow + 1, COLS / 4);
                 grid.setStart(2, 2);
                 grid.setEnd(ROWS - 3, COLS - 3);
                 break;
             }
             case 4: {
-                // Comb Structure - many dead ends
-                for (int c = 4; c < COLS - 4; c += 5) {
-                    drawVWall(grid, c, 1, ROWS - 6);
+                // Sandy Desert - large sand region in middle
+                for (int r = 5; r < ROWS - 5; r++) {
+                    for (int c = 10; c < COLS - 10; c++) {
+                        grid.setSand(r, c);
+                    }
                 }
-                for (int c = 6; c < COLS - 4; c += 5) {
-                    drawVWall(grid, c, 5, ROWS - 2);
-                }
-                grid.setStart(1, 1);
-                grid.setEnd(ROWS - 2, COLS - 2);
+                grid.setStart(2, 2);
+                grid.setEnd(ROWS - 3, COLS - 3);
                 break;
             }
             case 5:
             default: {
-                // Dual Spiral - two spirals
-                int q1CenterR = ROWS / 4;
-                int q1CenterC = COLS / 4;
-                int q2CenterR = 3 * ROWS / 4;
-                int q2CenterC = 3 * COLS / 4;
-
-                // First spiral (top-left)
-                for (int i = 1; i <= 3; i++) {
-                    int m = i * 2;
-                    if (q1CenterR - m > 0 && q1CenterC - m > 0) {
-                        drawHWall(grid, q1CenterR - m, q1CenterC - m, q1CenterC + m - 1);
-                        drawVWall(grid, q1CenterC + m, q1CenterR - m, q1CenterR + m);
-                        drawHWall(grid, q1CenterR + m, q1CenterC - m + 1, q1CenterC + m);
-                        drawVWall(grid, q1CenterC - m, q1CenterR - m + 1, q1CenterR + m - 1);
+                // Muddy Swamp - alternating mud patches
+                for (int r = 3; r < ROWS - 3; r += 5) {
+                    for (int c = 3; c < COLS - 3; c += 6) {
+                        // 3x3 mud patches
+                        for (int dr = 0; dr < 3; dr++) {
+                            for (int dc = 0; dc < 3; dc++) {
+                                if (grid.inBounds(r + dr, c + dc)) {
+                                    grid.setMud(r + dr, c + dc);
+                                }
+                            }
+                        }
                     }
                 }
-
-                // Second spiral (bottom-right)
-                for (int i = 1; i <= 3; i++) {
-                    int m = i * 2;
-                    if (q2CenterR + m < ROWS - 1 && q2CenterC + m < COLS - 1) {
-                        drawHWall(grid, q2CenterR - m, q2CenterC - m, q2CenterC + m - 1);
-                        drawVWall(grid, q2CenterC + m, q2CenterR - m, q2CenterR + m);
-                        drawHWall(grid, q2CenterR + m, q2CenterC - m + 1, q2CenterC + m);
-                        drawVWall(grid, q2CenterC - m, q2CenterR - m + 1, q2CenterR + m - 1);
-                    }
-                }
-
                 grid.setStart(1, 1);
                 grid.setEnd(ROWS - 2, COLS - 2);
                 break;
