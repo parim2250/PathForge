@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <algorithm>
 
 // ============================================
 // PROGRAMMATICALLY GENERATED PRESET MAZES
@@ -61,7 +62,24 @@ public:
     }
 
 private:
-    // Helpers
+    // Helper terrain setter functions with safety bounds checks
+    static void setWater(Grid& grid, int r, int c) {
+        if (grid.inBounds(r, c)) grid.getCell(r, c).terrain = Terrain::WATER;
+    }
+
+    static void setSand(Grid& grid, int r, int c) {
+        if (grid.inBounds(r, c)) grid.getCell(r, c).terrain = Terrain::SAND;
+    }
+
+    static void setMud(Grid& grid, int r, int c) {
+        if (grid.inBounds(r, c)) grid.getCell(r, c).terrain = Terrain::MUD;
+    }
+
+    static void setEmpty(Grid& grid, int r, int c) {
+        if (grid.inBounds(r, c)) grid.getCell(r, c).terrain = Terrain::EMPTY;
+    }
+
+    // Wall Helpers
     static void drawHWall(Grid& grid, int row, int colStart, int colEnd) {
         for (int c = colStart; c <= colEnd && c < COLS; c++)
             if (row >= 0 && row < ROWS) grid.setWall(row, c);
@@ -175,12 +193,12 @@ private:
                 // River Crossing - horizontal river of water in middle
                 int riverRow = ROWS / 2;
                 for (int c = 1; c < COLS - 1; c++) {
-                    grid.setWater(riverRow, c);
-                    grid.setWater(riverRow + 1, c);
+                    setWater(grid, riverRow, c);
+                    setWater(grid, riverRow + 1, c);
                 }
                 // Small bridge (empty cells) at one spot
-                grid.setEmpty(riverRow, COLS / 4);
-                grid.setEmpty(riverRow + 1, COLS / 4);
+                setEmpty(grid, riverRow, COLS / 4);
+                setEmpty(grid, riverRow + 1, COLS / 4);
                 grid.setStart(2, 2);
                 grid.setEnd(ROWS - 3, COLS - 3);
                 break;
@@ -189,7 +207,7 @@ private:
                 // Sandy Desert - large sand region in middle
                 for (int r = 5; r < ROWS - 5; r++) {
                     for (int c = 10; c < COLS - 10; c++) {
-                        grid.setSand(r, c);
+                        setSand(grid, r, c);
                     }
                 }
                 grid.setStart(2, 2);
@@ -205,7 +223,7 @@ private:
                         for (int dr = 0; dr < 3; dr++) {
                             for (int dc = 0; dc < 3; dc++) {
                                 if (grid.inBounds(r + dr, c + dc)) {
-                                    grid.setMud(r + dr, c + dc);
+                                    setMud(grid, r + dr, c + dc);
                                 }
                             }
                         }
