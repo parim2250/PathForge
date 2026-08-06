@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include "../rendering/Colors.h"
 #include "../core/Constants.h"
 
@@ -29,6 +30,14 @@ private:
     bool algo2Running = false;
 
     int animationSpeed = 20;
+
+    // ============================================
+    // SCROLLING
+    // ============================================
+    float scrollOffset = 0;
+    float contentHeight = 0;
+    float maxScroll = 0;
+    const float SCROLL_SPEED = 30.0f;
 
 public:
     bool loadFont() {
@@ -71,8 +80,20 @@ public:
 
     void setSpeed(int speed) { animationSpeed = speed; }
 
+    // ============================================
+    // SCROLL HANDLING (call from main.cpp on mouse wheel)
+    // ============================================
+    void scroll(float delta) {
+        scrollOffset -= delta * SCROLL_SPEED;
+        if (scrollOffset < 0) scrollOffset = 0;
+        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+    }
+
+    // ============================================
+    // MAIN RENDER
+    // ============================================
     void render(sf::RenderWindow& window) {
-        // Panel background
+        // Solid panel background (always visible)
         sf::RectangleShape panel(sf::Vector2f(UI_PANEL_WIDTH, WINDOW_HEIGHT));
         panel.setPosition(MAZE_WIDTH, 0);
         panel.setFillColor(Colors::BG_MID);
@@ -85,141 +106,277 @@ public:
 
         if (!fontLoaded) return;
 
-        // Title
+        // ============================================
+        // FIXED HEADER (does NOT scroll)
+        // ============================================
         drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 12, 20, Colors::TEXT_PRIMARY, true);
+        drawDivider(window, 42);
 
-        int yPos = 42;
-        drawDivider(window, yPos); yPos += 8;
+        // Set up clipping/view for scrollable content
+        // Header ends at y=50, footer starts at WINDOW_HEIGHT-70
+        float scrollAreaStart = 50;
+        float scrollAreaEnd = WINDOW_HEIGHT - 70;
 
-        // Game Mode
-        drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        // Render scrollable content
+        float yPos = scrollAreaStart - scrollOffset;
+        float startY = yPos;
+
+        // ============================================
+        // GAME MODE
+        // ============================================
+        if (yPos > 30 && yPos < scrollAreaEnd) {
+            drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        }
         yPos += 12;
-        sf::RectangleShape gm(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
-        gm.setPosition(MAZE_WIDTH + 20, yPos);
-        gm.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
-        window.draw(gm);
-        drawText(window, currentGameMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+        if (yPos > 30 && yPos < scrollAreaEnd) {
+            sf::RectangleShape gm(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
+            gm.setPosition(MAZE_WIDTH + 20, yPos);
+            gm.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
+            window.draw(gm);
+            drawText(window, currentGameMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+        }
         yPos += 30;
 
         // Preset info
         if (currentGameMode == "PRESET" && !currentPresetName.empty()) {
-            drawText(window, currentDifficulty + " L" + std::to_string(currentLevel),
-                     MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, currentDifficulty + " L" + std::to_string(currentLevel),
+                         MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
+            }
             yPos += 12;
-            drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos, 12, Colors::TEXT_PRIMARY, true);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos, 12, Colors::TEXT_PRIMARY, true);
+            }
             yPos += 20;
         }
 
-        drawDivider(window, yPos); yPos += 8;
+        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
+        yPos += 8;
 
         // ============================================
-        // ALGORITHM STATS (when running)
+        // ALGORITHM STATS
         // ============================================
         if (!algo1Name.empty() || !algo2Name.empty()) {
-            drawText(window, "ALGORITHM STATS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "ALGORITHM STATS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 15;
 
             if (!algo1Name.empty()) {
-                drawAlgoBox(window, yPos, algo1Name, algo1Nodes, algo1PathLen, algo1Found, algo1Running, getAlgoColor(algo1Name));
+                if (yPos > 30 && yPos < scrollAreaEnd) {
+                    drawAlgoBox(window, yPos, algo1Name, algo1Nodes, algo1PathLen, algo1Found, algo1Running, getAlgoColor(algo1Name));
+                }
                 yPos += 78;
             }
             if (!algo2Name.empty()) {
-                drawAlgoBox(window, yPos, algo2Name, algo2Nodes, algo2PathLen, algo2Found, algo2Running, getAlgoColor(algo2Name));
+                if (yPos > 30 && yPos < scrollAreaEnd) {
+                    drawAlgoBox(window, yPos, algo2Name, algo2Nodes, algo2PathLen, algo2Found, algo2Running, getAlgoColor(algo2Name));
+                }
                 yPos += 78;
             }
 
-            drawDivider(window, yPos); yPos += 8;
+            if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
+            yPos += 8;
         }
 
-        // Placement Mode (Custom only)
+        // ============================================
+        // PLACEMENT MODE (Custom only)
+        // ============================================
         if (currentGameMode == "CUSTOM") {
-            drawText(window, "PLACEMENT", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "CURRENT TOOL", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 12;
-            sf::RectangleShape mb(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
-            mb.setPosition(MAZE_WIDTH + 20, yPos);
-            mb.setFillColor(getModeColor());
-            window.draw(mb);
-            drawText(window, currentMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                sf::RectangleShape mb(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
+                mb.setPosition(MAZE_WIDTH + 20, yPos);
+                mb.setFillColor(getModeColor());
+                window.draw(mb);
+                drawText(window, currentMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
+            }
             yPos += 30;
-            drawDivider(window, yPos); yPos += 8;
+            if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
+            yPos += 8;
         }
 
         // ============================================
-        // ALGORITHM KEYS (mode-aware)
+        // ALGORITHM KEYS
         // ============================================
-        drawText(window, "PATHFINDING", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        if (yPos > 30 && yPos < scrollAreaEnd) {
+            drawText(window, "PATHFINDING", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        }
         yPos += 13;
 
         if (currentGameMode == "PRESET") {
-            drawKeyBinding(window, "Q", "BFS", yPos, Colors::BFS_PATH); yPos += 20;
-            drawKeyBinding(window, "E", "DFS", yPos, Colors::DFS_PATH); yPos += 20;
-            drawKeyBinding(window, "T", "A*", yPos, Colors::ASTAR_PATH); yPos += 20;
-            drawKeyBinding(window, "Y", "Dijkstra", yPos, Colors::DIJKSTRA_PATH); yPos += 20;
-            drawKeyBinding(window, "U", "Greedy", yPos, Colors::GREEDY_PATH); yPos += 20;
-            drawKeyBinding(window, "O", "BiDir BFS", yPos, Colors::BIDIR_PATH); yPos += 20;
-            drawKeyBinding(window, "P", "IDDFS", yPos, sf::Color(180, 180, 200)); yPos += 20;
-            drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY); yPos += 16;
-            drawKeyBinding(window, "R", "BFS vs DFS", yPos, sf::Color(200,200,100)); yPos += 20;
-            drawKeyBinding(window, "Z", "A* vs BFS", yPos, sf::Color(150,200,200)); yPos += 20;
+            drawKeyIfVisible(window, "Q", "BFS", yPos, Colors::BFS_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "E", "DFS", yPos, Colors::DFS_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "T", "A*", yPos, Colors::ASTAR_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "Y", "Dijkstra", yPos, Colors::DIJKSTRA_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "U", "Greedy", yPos, Colors::GREEDY_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "O", "BiDir BFS", yPos, Colors::BIDIR_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "P", "IDDFS", yPos, sf::Color(180, 180, 200), scrollAreaEnd); yPos += 20;
+
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            }
+            yPos += 16;
+            drawKeyIfVisible(window, "R", "BFS vs DFS", yPos, sf::Color(200,200,100), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "Z", "A* vs BFS", yPos, sf::Color(150,200,200), scrollAreaEnd); yPos += 20;
         } else {
-            drawKeyBinding(window, "1", "BFS", yPos, Colors::BFS_PATH); yPos += 20;
-            drawKeyBinding(window, "2", "DFS", yPos, Colors::DFS_PATH); yPos += 20;
-            drawKeyBinding(window, "4", "A*", yPos, Colors::ASTAR_PATH); yPos += 20;
-            drawKeyBinding(window, "5", "Dijkstra", yPos, Colors::DIJKSTRA_PATH); yPos += 20;
-            drawKeyBinding(window, "6", "Greedy", yPos, Colors::GREEDY_PATH); yPos += 20;
-            drawKeyBinding(window, "7", "BiDir BFS", yPos, Colors::BIDIR_PATH); yPos += 20;
-            drawKeyBinding(window, "8", "IDDFS", yPos, sf::Color(180, 180, 200)); yPos += 20;
-            drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY); yPos += 16;
-            drawKeyBinding(window, "3", "BFS vs DFS", yPos, sf::Color(200,200,100)); yPos += 20;
-            drawKeyBinding(window, "9", "A* vs BFS", yPos, sf::Color(150,200,200)); yPos += 20;
+            drawKeyIfVisible(window, "1", "BFS", yPos, Colors::BFS_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "2", "DFS", yPos, Colors::DFS_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "4", "A*", yPos, Colors::ASTAR_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "5", "Dijkstra", yPos, Colors::DIJKSTRA_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "6", "Greedy", yPos, Colors::GREEDY_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "7", "BiDir BFS", yPos, Colors::BIDIR_PATH, scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "8", "IDDFS", yPos, sf::Color(180, 180, 200), scrollAreaEnd); yPos += 20;
+
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            }
+            yPos += 16;
+            drawKeyIfVisible(window, "3", "BFS vs DFS", yPos, sf::Color(200,200,100), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "9", "A* vs BFS", yPos, sf::Color(150,200,200), scrollAreaEnd); yPos += 20;
         }
 
-        drawDivider(window, yPos + 3); yPos += 12;
+        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
+        yPos += 12;
 
-        // Speed
-        drawText(window, "SPEED: " + std::to_string(animationSpeed) + "ms", MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
+        // ============================================
+        // SPEED CONTROL
+        // ============================================
+        if (yPos > 30 && yPos < scrollAreaEnd) {
+            drawText(window, "SPEED: " + std::to_string(animationSpeed) + "ms",
+                     MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
+        }
         yPos += 15;
-        drawKeyBinding(window, "+", "Faster", yPos); yPos += 22;
-        drawKeyBinding(window, "-", "Slower", yPos); yPos += 22;
+        drawKeyIfVisible(window, "+", "Faster", yPos, sf::Color(100, 220, 100), scrollAreaEnd); yPos += 20;
+        drawKeyIfVisible(window, "-", "Slower", yPos, sf::Color(220, 100, 100), scrollAreaEnd); yPos += 20;
 
-        drawDivider(window, yPos + 3); yPos += 12;
+        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
+        yPos += 12;
 
-        // Mode switching
+        // ============================================
+        // MODE-SPECIFIC KEYS
+        // ============================================
         if (currentGameMode == "PRESET") {
-            drawText(window, "DIFFICULTY", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "DIFFICULTY", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 13;
-            drawKeyBinding(window, "B", "Beginner", yPos); yPos += 22;
-            drawKeyBinding(window, "I", "Intermediate", yPos); yPos += 22;
-            drawKeyBinding(window, "A", "Advanced", yPos); yPos += 22;
+            drawKeyIfVisible(window, "B", "Beginner", yPos, sf::Color(100, 200, 100), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "I", "Intermediate", yPos, sf::Color(255, 180, 100), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "A", "Advanced", yPos, sf::Color(255, 100, 100), scrollAreaEnd); yPos += 20;
 
-            drawText(window, "LEVELS", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "LEVELS", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 16;
-            drawKeyBinding(window, "1-5", "Load level", yPos); yPos += 22;
+            drawKeyIfVisible(window, "1-5", "Load level", yPos, Colors::TEXT_ACCENT, scrollAreaEnd); yPos += 20;
+
+            // Terrain mazes highlight
+            if (currentDifficulty == "INTERMEDIATE") {
+                if (yPos > 30 && yPos < scrollAreaEnd) {
+                    drawText(window, "TERRAIN MAZES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+                }
+                yPos += 16;
+                drawKeyIfVisible(window, "3", "River Crossing", yPos, sf::Color(84, 160, 255), scrollAreaEnd); yPos += 20;
+                drawKeyIfVisible(window, "4", "Sandy Desert", yPos, sf::Color(255, 195, 105), scrollAreaEnd); yPos += 20;
+                drawKeyIfVisible(window, "5", "Muddy Swamp", yPos, sf::Color(139, 90, 60), scrollAreaEnd); yPos += 20;
+            }
         } else {
-            drawText(window, "PLACEMENT", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "PLACEMENT", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 13;
-            drawKeyBinding(window, "W", "Wall", yPos, sf::Color(85, 95, 120)); yPos += 20;
-            drawKeyBinding(window, "S", "Start", yPos, sf::Color(46, 213, 115)); yPos += 20;
-            drawKeyBinding(window, "E", "End", yPos, sf::Color(255, 71, 87)); yPos += 20;
-            drawKeyBinding(window, "X", "Erase", yPos, sf::Color(120, 120, 130)); yPos += 20;
-            drawText(window, "TERRAIN", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            drawKeyIfVisible(window, "W", "Wall", yPos, sf::Color(85, 95, 120), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "S", "Start", yPos, sf::Color(46, 213, 115), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "E", "End", yPos, sf::Color(255, 71, 87), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "X", "Erase", yPos, sf::Color(120, 120, 130), scrollAreaEnd); yPos += 20;
+
+            if (yPos > 30 && yPos < scrollAreaEnd) {
+                drawText(window, "TERRAIN", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
+            }
             yPos += 16;
-            drawKeyBinding(window, "F", "Sand (3x)", yPos, sf::Color(255, 195, 105)); yPos += 20;
-            drawKeyBinding(window, "V", "Water (5x)", yPos, sf::Color(84, 160, 255)); yPos += 20;
-            drawKeyBinding(window, "D", "Mud (8x)", yPos, sf::Color(139, 90, 60)); yPos += 20;
+            drawKeyIfVisible(window, "F", "Sand (3x)", yPos, sf::Color(255, 195, 105), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "V", "Water (5x)", yPos, sf::Color(84, 160, 255), scrollAreaEnd); yPos += 20;
+            drawKeyIfVisible(window, "D", "Mud (8x)", yPos, sf::Color(139, 90, 60), scrollAreaEnd); yPos += 20;
         }
 
-        // Commands (always at bottom)
-        drawText(window, "COMMANDS", MAZE_WIDTH + 20, WINDOW_HEIGHT - 90, 9, Colors::TEXT_SECONDARY);
-        drawKeyBinding(window, "G", "Clear paths", WINDOW_HEIGHT - 75);
-        drawKeyBinding(window, "C", "Clear all", WINDOW_HEIGHT - 53);
-        drawKeyBinding(window, "M", "Switch mode", WINDOW_HEIGHT - 31);
+        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
+        yPos += 12;
 
-        // Version
-        drawText(window, "v2.0", MAZE_WIDTH + UI_PANEL_WIDTH - 40, WINDOW_HEIGHT - 15, 9, Colors::TEXT_SECONDARY);
+        // ============================================
+        // COMMANDS
+        // ============================================
+        if (yPos > 30 && yPos < scrollAreaEnd) {
+            drawText(window, "COMMANDS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        }
+        yPos += 13;
+        drawKeyIfVisible(window, "G", "Clear paths", yPos, sf::Color(150, 200, 220), scrollAreaEnd); yPos += 20;
+        drawKeyIfVisible(window, "C", "Clear all", yPos, sf::Color(220, 150, 150), scrollAreaEnd); yPos += 20;
+        drawKeyIfVisible(window, "M", "Switch mode", yPos, sf::Color(200, 200, 100), scrollAreaEnd); yPos += 20;
+
+        // Calculate max scroll based on content size
+        contentHeight = yPos + scrollOffset - startY;
+        float availableHeight = scrollAreaEnd - scrollAreaStart;
+        maxScroll = std::max(0.0f, contentHeight - availableHeight + 20);
+
+        // ============================================
+        // MASK: Cover overflow above header (so text doesn't leak)
+        // ============================================
+        sf::RectangleShape topMask(sf::Vector2f(UI_PANEL_WIDTH - 2, 50));
+        topMask.setPosition(MAZE_WIDTH + 2, 0);
+        topMask.setFillColor(Colors::BG_MID);
+        window.draw(topMask);
+
+        // Redraw header on top
+        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 12, 20, Colors::TEXT_PRIMARY, true);
+        drawDivider(window, 42);
+
+        // Bottom mask (so scrolled content doesn't overlap footer)
+        sf::RectangleShape bottomMask(sf::Vector2f(UI_PANEL_WIDTH - 2, 80));
+        bottomMask.setPosition(MAZE_WIDTH + 2, WINDOW_HEIGHT - 70);
+        bottomMask.setFillColor(Colors::BG_MID);
+        window.draw(bottomMask);
+
+        // ============================================
+        // FOOTER (fixed at bottom)
+        // ============================================
+        drawDivider(window, WINDOW_HEIGHT - 65);
+        drawText(window, "SCROLL for more", MAZE_WIDTH + 20, WINDOW_HEIGHT - 55, 10, Colors::TEXT_SECONDARY);
+        drawText(window, "Mouse wheel to scroll", MAZE_WIDTH + 20, WINDOW_HEIGHT - 40, 10, Colors::TEXT_SECONDARY);
+        drawText(window, "v4.0 | PathForge", MAZE_WIDTH + 20, WINDOW_HEIGHT - 22, 10, Colors::TEXT_SECONDARY);
+
+        // ============================================
+        // SCROLL INDICATOR (right side of panel)
+        // ============================================
+        if (maxScroll > 0) {
+            float trackHeight = scrollAreaEnd - scrollAreaStart;
+            sf::RectangleShape track(sf::Vector2f(4, trackHeight));
+            track.setPosition(MAZE_WIDTH + UI_PANEL_WIDTH - 8, scrollAreaStart);
+            track.setFillColor(sf::Color(50, 55, 70));
+            window.draw(track);
+
+            float thumbHeight = std::max(30.0f, trackHeight * (trackHeight / contentHeight));
+            float thumbY = scrollAreaStart + (scrollOffset / maxScroll) * (trackHeight - thumbHeight);
+
+            sf::RectangleShape thumb(sf::Vector2f(4, thumbHeight));
+            thumb.setPosition(MAZE_WIDTH + UI_PANEL_WIDTH - 8, thumbY);
+            thumb.setFillColor(Colors::TEXT_ACCENT);
+            window.draw(thumb);
+        }
     }
 
 private:
+    // Helper: draw key only if visible in scroll area
+    void drawKeyIfVisible(sf::RenderWindow& window, const std::string& key,
+                           const std::string& desc, float y, sf::Color accent, float scrollEnd) {
+        if (y > 30 && y < scrollEnd) {
+            drawKeyBinding(window, key, desc, y, accent);
+        }
+    }
+
     void drawText(sf::RenderWindow& window, const std::string& str,
                   float x, float y, int size, sf::Color color, bool bold = false) {
         sf::Text text;
@@ -240,17 +397,14 @@ private:
     }
 
     void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
-                        const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
-
-        // Key badge with DARK background (always readable)
+                         const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
         sf::RectangleShape kb(sf::Vector2f(32, 18));
         kb.setPosition(MAZE_WIDTH + 20, y);
-        kb.setFillColor(Colors::BG_DARK);   // dark background
+        kb.setFillColor(Colors::BG_DARK);
         kb.setOutlineThickness(1.5f);
-        kb.setOutlineColor(accent.a > 0 ? accent : Colors::BORDER_LIGHT);  // colored border
+        kb.setOutlineColor(accent.a > 0 ? accent : Colors::BORDER_LIGHT);
         window.draw(kb);
 
-        // Colored accent strip on left of key (like a colored tab)
         if (accent.a > 0) {
             sf::RectangleShape strip(sf::Vector2f(3, 18));
             strip.setPosition(MAZE_WIDTH + 20, y);
@@ -258,17 +412,13 @@ private:
             window.draw(strip);
         }
 
-        // Key letter - always bright white/accent color
         sf::Color keyTextColor = accent.a > 0 ? accent : Colors::TEXT_PRIMARY;
         drawText(window, key, MAZE_WIDTH + 28, y + 1, 12, keyTextColor, true);
-
-        // Description
         drawText(window, desc, MAZE_WIDTH + 60, y + 2, 12, Colors::TEXT_PRIMARY);
     }
 
     void drawAlgoBox(sf::RenderWindow& window, float y, const std::string& name,
                       int nodes, int pathLen, bool found, bool running, sf::Color color) {
-        // Box
         sf::RectangleShape box(sf::Vector2f(UI_PANEL_WIDTH - 40, 70));
         box.setPosition(MAZE_WIDTH + 20, y);
         box.setFillColor(Colors::BG_DARK);
@@ -276,20 +426,17 @@ private:
         box.setOutlineColor(color);
         window.draw(box);
 
-        // Color strip on left
         sf::RectangleShape strip(sf::Vector2f(4, 70));
         strip.setPosition(MAZE_WIDTH + 20, y);
         strip.setFillColor(color);
         window.draw(strip);
 
-        // Name + status
         drawText(window, name, MAZE_WIDTH + 32, y + 6, 14, Colors::TEXT_PRIMARY, true);
 
         std::string status = running ? "RUNNING..." : (found ? "PATH FOUND" : "NO PATH");
         sf::Color statusCol = running ? Colors::TEXT_ACCENT : (found ? Colors::START : Colors::END);
         drawText(window, status, MAZE_WIDTH + UI_PANEL_WIDTH - 100, y + 8, 10, statusCol, true);
 
-        // Stats
         drawText(window, "Nodes:", MAZE_WIDTH + 32, y + 28, 11, Colors::TEXT_SECONDARY);
         drawText(window, std::to_string(nodes), MAZE_WIDTH + 90, y + 28, 11, Colors::TEXT_PRIMARY, true);
 
@@ -309,8 +456,12 @@ private:
     }
 
     sf::Color getAlgoColor(const std::string& name) {
-        if (name == "BFS") return Colors::BFS_PATH;
-        if (name == "DFS") return Colors::DFS_PATH;
+        if (name == "BFS")      return Colors::BFS_PATH;
+        if (name == "DFS")      return Colors::DFS_PATH;
+        if (name == "A*")       return Colors::ASTAR_PATH;
+        if (name == "Dijkstra") return Colors::DIJKSTRA_PATH;
+        if (name == "Greedy")   return Colors::GREEDY_PATH;
+        if (name == "BiDir BFS") return Colors::BIDIR_PATH;
         return Colors::TEXT_ACCENT;
     }
 };
