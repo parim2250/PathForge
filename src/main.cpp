@@ -84,18 +84,18 @@ int main() {
     std::cout << std::endl;
     std::cout << "Press +/- for speed, G to clear paths, C to clear all" << std::endl;
 
-   auto applyMode = [&](int row, int col) {
-    if (!grid.inBounds(row, col)) return;
-    switch (currentMode) {
-        case PlaceMode::WALL:  grid.setWall(row, col); break;
-        case PlaceMode::START: grid.setStart(row, col); break;
-        case PlaceMode::END:   grid.setEnd(row, col); break;
-        case PlaceMode::ERASE: grid.setEmpty(row, col); break;
-        case PlaceMode::SAND:  grid.setSand(row, col); break;
-        case PlaceMode::WATER: grid.setWater(row, col); break;
-        case PlaceMode::MUD:   grid.setMud(row, col); break;
-    }
-};
+    auto applyMode = [&](int row, int col) {
+        if (!grid.inBounds(row, col)) return;
+        switch (currentMode) {
+            case PlaceMode::WALL:  grid.setWall(row, col); break;
+            case PlaceMode::START: grid.setStart(row, col); break;
+            case PlaceMode::END:   grid.setEnd(row, col); break;
+            case PlaceMode::ERASE: grid.setEmpty(row, col); break;
+            case PlaceMode::SAND:  grid.setSand(row, col); break;
+            case PlaceMode::WATER: grid.setWater(row, col); break;
+            case PlaceMode::MUD:   grid.setMud(row, col); break;
+        }
+    };
 
     auto loadPreset = [&](Difficulty diff, int level) {
         MazeLoader::loadPreset(grid, diff, level);
@@ -232,6 +232,14 @@ int main() {
                 }
             }
 
+            // Mouse wheel scroll for sidebar
+            if (event.type == sf::Event::MouseWheelScrolled) {
+                // Only scroll when mouse is over the sidebar
+                if (event.mouseWheelScroll.x >= MAZE_WIDTH) {
+                    panel.scroll(event.mouseWheelScroll.delta);
+                }
+            }
+
             if (event.type == sf::Event::MouseMoved) {
                 int row, col;
                 mouseToGrid(event.mouseMove.x, event.mouseMove.y, row, col);
@@ -280,7 +288,6 @@ int main() {
                     if (event.key.code == sf::Keyboard::F) { currentMode = PlaceMode::SAND; panel.setMode("SAND"); }
                     if (event.key.code == sf::Keyboard::V) { currentMode = PlaceMode::WATER; panel.setMode("WATER"); }
                     if (event.key.code == sf::Keyboard::D) { currentMode = PlaceMode::MUD; panel.setMode("MUD"); }
-
 
                     // Algorithms (number keys)
                     if (event.key.code == sf::Keyboard::Num1) startBFS();
