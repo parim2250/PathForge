@@ -28,124 +28,88 @@ public:
 
 private:
     void drawCell(sf::RenderWindow& window, const Cell& cell) {
-        float x = cell.col * CELL_SIZE;
-        float y = cell.row * CELL_SIZE;
-        float size = CELL_SIZE - 1;
+    float x = cell.col * CELL_SIZE;
+    float y = cell.row * CELL_SIZE;
+    float size = CELL_SIZE - 1;
 
-        bool isHovered = (cell.row == hoverRow && cell.col == hoverCol);
+    bool isHovered = (cell.row == hoverRow && cell.col == hoverCol);
 
-        // PRIORITY 1: Start
-        if (cell.isStart()) {
-            drawGlowCell(window, x, y, size, Colors::START, Colors::START_GLOW, Colors::START_CORE);
-            return;
-        }
+    // PRIORITY 1: Start
+    if (cell.isStart()) {
+        drawGlowCell(window, x, y, size, Colors::START, Colors::START_GLOW, Colors::START_CORE);
+        return;
+    }
 
-        // PRIORITY 2: End
-        if (cell.isEnd()) {
-            drawGlowCell(window, x, y, size, Colors::END, Colors::END_GLOW, Colors::END_CORE);
-            return;
-        }
+    // PRIORITY 2: End
+    if (cell.isEnd()) {
+        drawGlowCell(window, x, y, size, Colors::END, Colors::END_GLOW, Colors::END_CORE);
+        return;
+    }
 
-        // PRIORITY 3: Walls
-        if (cell.isWall()) {
-            drawWallCell(window, x, y, size);
-            return;
-        }
+    // PRIORITY 3: Walls
+    if (cell.isWall()) {
+        drawWallCell(window, x, y, size);
+        return;
+    }
 
-        // PRIORITY 4: PATH OVERLAP (both BFS and DFS paths here)
-        // This is the HIGHEST priority for visualization
-        if (cell.bfsPath && cell.dfsPath) {
-            drawFilledCell(window, x, y, size, Colors::PATH_OVERLAP);
-            return;
-        }
+    // ============================================
+    // TERRAIN AS BASE LAYER
+    // Draw terrain FIRST, then overlay algorithm visualization on top
+    // This keeps terrain always visible
+    // ============================================
+    bool hasTerrain = (cell.terrain == Terrain::SAND ||
+                       cell.terrain == Terrain::WATER ||
+                       cell.terrain == Terrain::MUD);
 
-        // PRIORITY 5: BFS or DFS path alone
-        if (cell.bfsPath) {
-            drawFilledCell(window, x, y, size, Colors::BFS_PATH);
-            return;
-        }
-        if (cell.dfsPath) {
-            drawFilledCell(window, x, y, size, Colors::DFS_PATH);
-            return;
-        }
-        if (cell.astarPath) {
-            drawFilledCell(window, x, y, size, Colors::ASTAR_PATH);
-            return;
-        }
-        if (cell.dijkstraPath) {
-            drawFilledCell(window, x, y, size, Colors::DIJKSTRA_PATH);
-            return;
-        }
-        if (cell.greedyPath) {
-            drawFilledCell(window, x, y, size, Colors::GREEDY_PATH);
-            return;
-        }
-        if (cell.bidirPath) {
-            drawFilledCell(window, x, y, size, Colors::BIDIR_PATH);
-            return;
-        }
-        if (cell.qlearnPath) {
-            drawFilledCell(window, x, y, size, Colors::QLEARN_PATH);
-            return;
-        }
-
-        // PRIORITY 6: Frontier (currently being explored)
-        if (cell.isFrontier) {
-            drawFilledCell(window, x, y, size, Colors::FRONTIER);
-            return;
-        }
-
-        // PRIORITY 7: Both visited (BFS + DFS explored this cell)
-        if (cell.bfsVisited && cell.dfsVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::BOTH_VISITED);
-            return;
-        }
-
-        // PRIORITY 8: Single algorithm visited
-        if (cell.bfsVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::BFS_VISITED);
-            return;
-        }
-        if (cell.dfsVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::DFS_VISITED);
-            return;
-        }
-        if (cell.astarVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::ASTAR_VISITED);
-            return;
-        }
-        if (cell.dijkstraVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::DIJKSTRA_VISITED);
-            return;
-        }
-        if (cell.greedyVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::GREEDY_VISITED);
-            return;
-        }
-        if (cell.bidirVisited) {
-            drawEmptyCell(window, x, y, size, Colors::EMPTY);
-            drawFilledCell(window, x, y, size, Colors::BIDIR_VISITED);
-            return;
-        }
-
-        // PRIORITY 9: Terrain (skip MUD to avoid brown - use custom colors only)
-        // PRIORITY 9: Terrain (with cost indicator dots)
-sf::Color terrainColor = getTerrainColor(cell);
-if (terrainColor.a > 0) {
-    drawTerrainCell(window, x, y, size, terrainColor, cell.cost);
-    return;
-}
-
-        // PRIORITY 10: Empty (with hover)
+    if (hasTerrain) {
+        drawTerrainCell(window, x, y, size, getTerrainColor(cell), cell.cost);
+    } else {
+        // Empty cell base
         sf::Color cellColor = isHovered ? Colors::EMPTY_HOVER : Colors::EMPTY;
         drawEmptyCell(window, x, y, size, cellColor);
     }
+
+    // ============================================
+    // OVERLAY: Algorithm visualization
+    // These are drawn ON TOP but with transparency
+    // so terrain stays visible underneath
+    // ============================================
+
+    // Path overlap (both BFS and DFS paths)
+    if (cell.bfsPath && cell.dfsPath) {
+        drawOverlayCell(window, x, y, size, Colors::PATH_OVERLAP, hasTerrain);
+        return;
+    }
+
+    // Single path
+    if (cell.bfsPath)      { drawOverlayCell(window, x, y, size, Colors::BFS_PATH, hasTerrain); return; }
+    if (cell.dfsPath)      { drawOverlayCell(window, x, y, size, Colors::DFS_PATH, hasTerrain); return; }
+    if (cell.astarPath)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_PATH, hasTerrain); return; }
+    if (cell.dijkstraPath) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_PATH, hasTerrain); return; }
+    if (cell.greedyPath)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_PATH, hasTerrain); return; }
+    if (cell.bidirPath)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_PATH, hasTerrain); return; }
+    if (cell.qlearnPath)   { drawOverlayCell(window, x, y, size, Colors::QLEARN_PATH, hasTerrain); return; }
+
+    // Frontier
+    if (cell.isFrontier) {
+        drawOverlayCell(window, x, y, size, Colors::FRONTIER, hasTerrain);
+        return;
+    }
+
+    // Both visited
+    if (cell.bfsVisited && cell.dfsVisited) {
+        drawOverlayCell(window, x, y, size, Colors::BOTH_VISITED, hasTerrain);
+        return;
+    }
+
+    // Single algorithm visited (translucent)
+    if (cell.bfsVisited)      { drawOverlayCell(window, x, y, size, Colors::BFS_VISITED, hasTerrain); return; }
+    if (cell.dfsVisited)      { drawOverlayCell(window, x, y, size, Colors::DFS_VISITED, hasTerrain); return; }
+    if (cell.astarVisited)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_VISITED, hasTerrain); return; }
+    if (cell.dijkstraVisited) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_VISITED, hasTerrain); return; }
+    if (cell.greedyVisited)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_VISITED, hasTerrain); return; }
+    if (cell.bidirVisited)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_VISITED, hasTerrain); return; }
+}
 
     void drawEmptyCell(sf::RenderWindow& window, float x, float y, float size, sf::Color color) {
         sf::RectangleShape rect(sf::Vector2f(size, size));
@@ -244,5 +208,30 @@ void drawTerrainCell(sf::RenderWindow& window, float x, float y, float size,
         dot.setFillColor(sf::Color(255, 255, 255, 180));
         window.draw(dot);
     }
+}
+
+// ============================================
+// DRAW ALGORITHM OVERLAY ON TOP OF TERRAIN
+// If terrain is present, use lower alpha so terrain shows through
+// ============================================
+void drawOverlayCell(sf::RenderWindow& window, float x, float y, float size,
+                      sf::Color color, bool hasTerrainBelow) {
+    sf::Color overlayColor = color;
+
+    // If terrain is below, reduce alpha so terrain shows through
+    if (hasTerrainBelow) {
+        // For paths: keep bright but see-through
+        if (overlayColor.a > 200) {
+            overlayColor.a = 160;  // brighter for paths
+        } else {
+            // For visited cells: even more transparent
+            overlayColor.a = std::min((int)overlayColor.a, 80);
+        }
+    }
+
+    sf::RectangleShape rect(sf::Vector2f(size, size));
+    rect.setPosition(x, y);
+    rect.setFillColor(overlayColor);
+    window.draw(rect);
 }
 };
