@@ -1,3 +1,4 @@
+
 #pragma once
 #include "Solver.h"
 #include <stack>
@@ -10,7 +11,10 @@ public:
     DFSSolver(Grid* g) : Solver(g, Algorithm::DFS) {
         int sr = grid->getStartRow();
         int sc = grid->getStartCol();
-        if (sr != -1 && sc != -1) {
+        int er = grid->getEndRow();
+        int ec = grid->getEndCol();
+
+        if (sr != -1 && sc != -1 && er != -1 && ec != -1) {
             frontier.push({sr, sc});
             visited[sr][sc] = true;
         } else {
@@ -18,10 +22,13 @@ public:
         }
     }
 
-    std::string getName() const override { return "DFS"; }
+    std::string getName() const override {
+        return "DFS";
+    }
 
     bool step() override {
         if (finished) return false;
+
         if (frontier.empty()) {
             finished = true;
             return false;
@@ -43,6 +50,7 @@ public:
         for (int i = 0; i < 4; i++) {
             int nr = r + DR[i];
             int nc = c + DC[i];
+
             if (!grid->inBounds(nr, nc)) continue;
             if (visited[nr][nc]) continue;
             if (!grid->getCell(nr, nc).isWalkable()) continue;
@@ -51,6 +59,7 @@ public:
             parent[nr][nc] = {r, c};
             frontier.push({nr, nc});
         }
+
         return true;
     }
 };

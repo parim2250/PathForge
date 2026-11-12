@@ -1,14 +1,16 @@
 #pragma once
 #include "Solver.h"
 #include <queue>
+#include<vector>
 #include <cmath>
+#include <functional>
 
 // ============================================
 // GREEDY BEST-FIRST SEARCH
 // Only uses heuristic (h) - ignores actual cost (g)
 // Very fast but often NOT shortest path
 // Beelines toward the goal, gets stuck at walls
-// ============================================
+// ============A================================
 
 class GreedySolver : public Solver {
 private:
@@ -30,7 +32,7 @@ private:
     }
 
 public:
-    GreedySolver(Grid* g) : Solver(g, Algorithm::GREEDY) {
+    GreedySolver(Grid* g):Solver(g, Algorithm::GREEDY) {
         int sr = grid->getStartRow();
         int sc = grid->getStartCol();
         endR = grid->getEndRow();

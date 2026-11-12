@@ -2,7 +2,6 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 #include <vector>
-#include <algorithm>
 #include "../rendering/Colors.h"
 #include "../core/Constants.h"
 
@@ -10,375 +9,215 @@ class InfoPanel {
 private:
     sf::Font font;
     bool fontLoaded = false;
-    std::string currentMode = "WALL";
-    std::string currentGameMode = "CUSTOM";
-    std::string currentPresetName = "";
-    std::string currentDifficulty = "";
-    int currentLevel = 0;
 
-    // Algorithm stats
-    std::string algo1Name = "";
-    int algo1Nodes = 0;
-    int algo1PathLen = 0;
-    bool algo1Found = false;
-    bool algo1Running = false;
+    int mouseX = 0, mouseY = 0;
+    float startX = (float)MAZE_WIDTH;
 
-    std::string algo2Name = "";
-    int algo2Nodes = 0;
-    int algo2PathLen = 0;
-    bool algo2Found = false;
-    bool algo2Running = false;
+    std::string selectedAlgo = "A*";
+    std::string selectedTool = "Wall";
+    bool isRunning = false;
+    bool isPaused = false;
+    int speedMs = 30;
 
-    int animationSpeed = 20;
+    bool dropdownOpen = false;
+    std::vector<std::string> algos = {"BFS", "DFS", "A*", "Dijkstra", "Greedy", "BiDir BFS", "IDDFS"};
+    std::vector<std::string> tools = {"Wall", "Erase", "Start", "End", "Sand", "Water", "Mud"};
 
-    // ============================================
-    // SCROLLING
-    // ============================================
-    float scrollOffset = 0;
-    float contentHeight = 0;
-    float maxScroll = 0;
-    const float SCROLL_SPEED = 30.0f;
+    int m_nodes = 0, m_pathLen = 0, m_cost = 0;
+    long long m_time = 0;
+
+    // Layout constants (render + hit-test MUST use the same values)
+    static constexpr float PAD = 20.f;
+    static constexpr float DROP_Y = 60.f;
+    static constexpr float DROP_H = 36.f;
+    static constexpr float CTRL_Y = 160.f;
+    static constexpr float CTRL_H = 36.f;
+    static constexpr float SPEED_Y = 230.f;
+    static constexpr float TOOL_Y = 300.f;
+    static constexpr float TOOL_W = 90.f;
+    static constexpr float TOOL_H = 32.f;
+    static constexpr float TOOL_GAP_X = 100.f;
+    static constexpr float TOOL_GAP_Y = 42.f;
+    static constexpr float METRIC_Y = 480.f;
 
 public:
     bool loadFont() {
-        std::vector<std::string> fontPaths = {
-            "assets/fonts/arial.ttf",
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/segoeui.ttf"
-        };
-        for (const auto& path : fontPaths) {
-            if (font.loadFromFile(path)) {
-                fontLoaded = true;
-                return true;
-            }
+        if (font.loadFromFile("C:/Windows/Fonts/segoeui.ttf") ||
+            font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+            fontLoaded = true;
+            return true;
         }
         return false;
     }
 
-    void setMode(const std::string& mode) { currentMode = mode; }
-    void setGameMode(const std::string& mode) { currentGameMode = mode; }
-    void setPresetInfo(const std::string& difficulty, int level, const std::string& name) {
-        currentDifficulty = difficulty;
-        currentLevel = level;
-        currentPresetName = name;
+    void updateHover(int x, int y) { mouseX = x; mouseY = y; }
+    void setRunning(bool r) { isRunning = r; }
+    void setPaused(bool p) { isPaused = p; }
+    void setMetrics(int n, int p, int c, long long t) {
+        m_nodes = n; m_pathLen = p; m_cost = c; m_time = t;
     }
 
-    void setAlgo1(const std::string& name, int nodes, int pathLen, bool found, bool running) {
-        algo1Name = name; algo1Nodes = nodes; algo1PathLen = pathLen;
-        algo1Found = found; algo1Running = running;
+    std::string getSelectedAlgo() const { return selectedAlgo; }
+    std::string getSelectedTool() const { return selectedTool; }
+    int getSpeed() const { return speedMs; }
+
+    std::string handleClick(int x, int y) {
+        if (x < startX) {
+            dropdownOpen = false;
+            return "";
+        }
+
+        // --- Dropdown header ---
+        sf::FloatRect dropRect(startX + PAD, DROP_Y, UI_PANEL_WIDTH - PAD * 2, DROP_H);
+        if (dropRect.contains((float)x, (float)y)) {
+            dropdownOpen = !dropdownOpen;
+            return "";
+        }
+
+        // --- Dropdown list (only when open) ---
+        if (dropdownOpen) {
+            for (size_t i = 0; i < algos.size(); i++) {
+                sf::FloatRect itemRect(startX + PAD, DROP_Y + DROP_H + i * DROP_H,
+                                       UI_PANEL_WIDTH - PAD * 2, DROP_H);
+                if (itemRect.contains((float)x, (float)y)) {
+                    selectedAlgo = algos[i];
+                    dropdownOpen = false;
+                    return "ALGO_CHANGE";
+                }
+            }
+            // click elsewhere closes list; still allow other controls below
+            dropdownOpen = false;
+        }
+
+        // --- Run / Pause / Reset ---
+        float btnW = 90.f;
+        if (sf::FloatRect(startX + PAD, CTRL_Y, btnW, CTRL_H).contains((float)x, (float)y))
+            return "CMD_RUN";
+        if (sf::FloatRect(startX + PAD + 100.f, CTRL_Y, btnW, CTRL_H).contains((float)x, (float)y))
+            return "CMD_PAUSE";
+        if (sf::FloatRect(startX + PAD + 200.f, CTRL_Y, btnW, CTRL_H).contains((float)x, (float)y))
+            return "CMD_RESET";
+
+        // --- Speed slider ---
+        if (sf::FloatRect(startX + PAD, SPEED_Y, UI_PANEL_WIDTH - PAD * 2, 24.f).contains((float)x, (float)y)) {
+            float percent = (x - (startX + PAD)) / (UI_PANEL_WIDTH - PAD * 2);
+            if (percent < 0.f) percent = 0.f;
+            if (percent > 1.f) percent = 1.f;
+            speedMs = MAX_SPEED - (int)(percent * (MAX_SPEED - MIN_SPEED));
+            if (speedMs < MIN_SPEED) speedMs = MIN_SPEED;
+            if (speedMs > MAX_SPEED) speedMs = MAX_SPEED;
+            return "SPEED_CHANGE";
+        }
+
+        // --- Tools (3 per row) ---
+        for (size_t i = 0; i < tools.size(); i++) {
+            int row = (int)i / 3;
+            int col = (int)i % 3;
+            float tx = startX + PAD + col * TOOL_GAP_X;
+            float ty = TOOL_Y + row * TOOL_GAP_Y;
+            if (sf::FloatRect(tx, ty, TOOL_W, TOOL_H).contains((float)x, (float)y)) {
+                selectedTool = tools[i];
+                return "TOOL_CHANGE";
+            }
+        }
+
+        return "";
     }
 
-    void setAlgo2(const std::string& name, int nodes, int pathLen, bool found, bool running) {
-        algo2Name = name; algo2Nodes = nodes; algo2PathLen = pathLen;
-        algo2Found = found; algo2Running = running;
-    }
-
-    void clearAlgoStats() {
-        algo1Name = ""; algo2Name = "";
-        algo1Running = false; algo2Running = false;
-    }
-
-    void setSpeed(int speed) { animationSpeed = speed; }
-
-    // ============================================
-    // SCROLL HANDLING (call from main.cpp on mouse wheel)
-    // ============================================
-    void scroll(float delta) {
-        scrollOffset -= delta * SCROLL_SPEED;
-        if (scrollOffset < 0) scrollOffset = 0;
-        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
-    }
-
-    // ============================================
-    // MAIN RENDER
-    // ============================================
     void render(sf::RenderWindow& window) {
-        // Solid panel background (always visible)
-        sf::RectangleShape panel(sf::Vector2f(UI_PANEL_WIDTH, WINDOW_HEIGHT));
-        panel.setPosition(MAZE_WIDTH, 0);
-        panel.setFillColor(Colors::BG_MID);
+        sf::RectangleShape panel(sf::Vector2f((float)UI_PANEL_WIDTH, (float)WINDOW_HEIGHT));
+        panel.setPosition(startX, 0.f);
+        panel.setFillColor(Colors::BG_PANEL);
         window.draw(panel);
 
-        sf::RectangleShape border(sf::Vector2f(2, WINDOW_HEIGHT));
-        border.setPosition(MAZE_WIDTH, 0);
-        border.setFillColor(Colors::BORDER_LIGHT);
+        sf::RectangleShape border(sf::Vector2f(1.f, (float)WINDOW_HEIGHT));
+        border.setPosition(startX, 0.f);
+        border.setFillColor(Colors::BORDER_DIM);
         window.draw(border);
 
         if (!fontLoaded) return;
 
-        // ============================================
-        // FIXED HEADER (does NOT scroll)
-        // ============================================
-        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 12, 20, Colors::TEXT_PRIMARY, true);
-        drawDivider(window, 42);
+        drawText(window, "ALGORITHM", startX + PAD, 30.f, 12, Colors::TEXT_MUTED, true);
 
-        // Set up clipping/view for scrollable content
-        // Header ends at y=50, footer starts at WINDOW_HEIGHT-70
-        float scrollAreaStart = 50;
-        float scrollAreaEnd = WINDOW_HEIGHT - 70;
+        // Dropdown header
+        sf::FloatRect dropRect(startX + PAD, DROP_Y, UI_PANEL_WIDTH - PAD * 2, DROP_H);
+        bool dropHover = dropRect.contains((float)mouseX, (float)mouseY);
+        drawButtonRect(window, dropRect, dropHover || dropdownOpen,
+                       dropdownOpen ? Colors::ACCENT_TEAL : sf::Color::Transparent);
+        drawText(window, selectedAlgo, startX + PAD + 15.f, DROP_Y + 8.f, 14, Colors::TEXT_PRIMARY, true);
+        drawText(window, dropdownOpen ? "^" : "v", startX + UI_PANEL_WIDTH - 40.f, DROP_Y + 8.f, 14, Colors::TEXT_MUTED);
 
-        // Render scrollable content
-        float yPos = scrollAreaStart - scrollOffset;
-        float startY = yPos;
+        // Controls
+        drawText(window, "SIMULATION CONTROLS", startX + PAD, CTRL_Y - 28.f, 12, Colors::TEXT_MUTED, true);
+        drawControlButton(window, "Run", startX + PAD, CTRL_Y, Colors::ACCENT_GREEN, !isRunning || isPaused);
+        drawControlButton(window, isPaused ? "Resume" : "Pause", startX + PAD + 100.f, CTRL_Y, Colors::SAND, isRunning);
+        drawControlButton(window, "Reset", startX + PAD + 200.f, CTRL_Y, Colors::ACCENT_RED, true);
 
-        // ============================================
-        // GAME MODE
-        // ============================================
-        if (yPos > 30 && yPos < scrollAreaEnd) {
-            drawText(window, "GAME MODE", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-        }
-        yPos += 12;
-        if (yPos > 30 && yPos < scrollAreaEnd) {
-            sf::RectangleShape gm(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
-            gm.setPosition(MAZE_WIDTH + 20, yPos);
-            gm.setFillColor(currentGameMode == "PRESET" ? sf::Color(76, 175, 80) : sf::Color(255, 152, 0));
-            window.draw(gm);
-            drawText(window, currentGameMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
-        }
-        yPos += 30;
+        // Speed
+        drawText(window, "Execution Speed", startX + PAD, SPEED_Y - 22.f, 12, Colors::TEXT_MUTED);
+        drawText(window, std::to_string(speedMs) + "ms", startX + UI_PANEL_WIDTH - 55.f, SPEED_Y - 22.f, 12, Colors::ACCENT_TEAL);
 
-        // Preset info
-        if (currentGameMode == "PRESET" && !currentPresetName.empty()) {
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, currentDifficulty + " L" + std::to_string(currentLevel),
-                         MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
-            }
-            yPos += 12;
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, currentPresetName, MAZE_WIDTH + 20, yPos, 12, Colors::TEXT_PRIMARY, true);
-            }
-            yPos += 20;
-        }
+        sf::RectangleShape track(sf::Vector2f(UI_PANEL_WIDTH - PAD * 2, 4.f));
+        track.setPosition(startX + PAD, SPEED_Y + 10.f);
+        track.setFillColor(Colors::BORDER_DIM);
+        window.draw(track);
 
-        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
-        yPos += 8;
+        float percent = 1.0f - (float)(speedMs - MIN_SPEED) / (float)(MAX_SPEED - MIN_SPEED);
+        if (percent < 0.f) percent = 0.f;
+        if (percent > 1.f) percent = 1.f;
+        sf::RectangleShape fill(sf::Vector2f((UI_PANEL_WIDTH - PAD * 2) * percent, 4.f));
+        fill.setPosition(startX + PAD, SPEED_Y + 10.f);
+        fill.setFillColor(Colors::ACCENT_TEAL);
+        window.draw(fill);
 
-        // ============================================
-        // ALGORITHM STATS
-        // ============================================
-        if (!algo1Name.empty() || !algo2Name.empty()) {
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "ALGORITHM STATS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 15;
+        sf::CircleShape thumb(8.f);
+        thumb.setPosition(startX + PAD + (UI_PANEL_WIDTH - PAD * 2) * percent - 8.f, SPEED_Y + 4.f);
+        thumb.setFillColor(Colors::TEXT_PRIMARY);
+        window.draw(thumb);
 
-            if (!algo1Name.empty()) {
-                if (yPos > 30 && yPos < scrollAreaEnd) {
-                    drawAlgoBox(window, yPos, algo1Name, algo1Nodes, algo1PathLen, algo1Found, algo1Running, getAlgoColor(algo1Name));
-                }
-                yPos += 78;
-            }
-            if (!algo2Name.empty()) {
-                if (yPos > 30 && yPos < scrollAreaEnd) {
-                    drawAlgoBox(window, yPos, algo2Name, algo2Nodes, algo2PathLen, algo2Found, algo2Running, getAlgoColor(algo2Name));
-                }
-                yPos += 78;
-            }
-
-            if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
-            yPos += 8;
+        // Tools
+        drawText(window, "TERRAIN BRUSHES", startX + PAD, TOOL_Y - 28.f, 12, Colors::TEXT_MUTED, true);
+        for (size_t i = 0; i < tools.size(); i++) {
+            int row = (int)i / 3;
+            int col = (int)i % 3;
+            float tx = startX + PAD + col * TOOL_GAP_X;
+            float ty = TOOL_Y + row * TOOL_GAP_Y;
+            sf::FloatRect r(tx, ty, TOOL_W, TOOL_H);
+            bool hover = r.contains((float)mouseX, (float)mouseY);
+            bool active = (selectedTool == tools[i]);
+            drawButtonRect(window, r, hover || active,
+                           active ? Colors::ACCENT_PURPLE : sf::Color::Transparent);
+            drawText(window, tools[i], tx + 14.f, ty + 6.f, 13,
+                     active ? Colors::TEXT_PRIMARY : Colors::TEXT_SECONDARY);
         }
 
-        // ============================================
-        // PLACEMENT MODE (Custom only)
-        // ============================================
-        if (currentGameMode == "CUSTOM") {
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "CURRENT TOOL", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
+        // Metrics
+        drawText(window, "REAL-TIME METRICS", startX + PAD, METRIC_Y - 28.f, 12, Colors::TEXT_MUTED, true);
+        drawMetricBox(window, startX + PAD, METRIC_Y, "Nodes Explored", std::to_string(m_nodes));
+        drawMetricBox(window, startX + PAD + 150.f, METRIC_Y, "Path Length", std::to_string(m_pathLen));
+        drawMetricBox(window, startX + PAD, METRIC_Y + 70.f, "Path Cost", std::to_string(m_cost));
+        drawMetricBox(window, startX + PAD + 150.f, METRIC_Y + 70.f, "Exec Time", std::to_string(m_time) + "ms");
+
+        // Dropdown list ON TOP
+        if (dropdownOpen) {
+            for (size_t i = 0; i < algos.size(); i++) {
+                sf::FloatRect r(startX + PAD, DROP_Y + DROP_H + i * DROP_H,
+                                UI_PANEL_WIDTH - PAD * 2, DROP_H);
+                bool hover = r.contains((float)mouseX, (float)mouseY);
+                sf::RectangleShape bg(sf::Vector2f(r.width, r.height));
+                bg.setPosition(r.left, r.top);
+                bg.setFillColor(hover ? Colors::UI_HOVER : Colors::BG_APP);
+                bg.setOutlineThickness(1.f);
+                bg.setOutlineColor(Colors::BORDER_DIM);
+                window.draw(bg);
+                drawText(window, algos[i], r.left + 15.f, r.top + 8.f, 14, Colors::TEXT_PRIMARY);
             }
-            yPos += 12;
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                sf::RectangleShape mb(sf::Vector2f(UI_PANEL_WIDTH - 40, 22));
-                mb.setPosition(MAZE_WIDTH + 20, yPos);
-                mb.setFillColor(getModeColor());
-                window.draw(mb);
-                drawText(window, currentMode, MAZE_WIDTH + 28, yPos + 3, 13, Colors::TEXT_PRIMARY, true);
-            }
-            yPos += 30;
-            if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos);
-            yPos += 8;
-        }
-
-        // ============================================
-        // ALGORITHM KEYS
-        // ============================================
-        if (yPos > 30 && yPos < scrollAreaEnd) {
-            drawText(window, "PATHFINDING", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-        }
-        yPos += 13;
-
-        if (currentGameMode == "PRESET") {
-            drawKeyIfVisible(window, "Q", "BFS", yPos, Colors::BFS_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "E", "DFS", yPos, Colors::DFS_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "T", "A*", yPos, Colors::ASTAR_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "Y", "Dijkstra", yPos, Colors::DIJKSTRA_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "U", "Greedy", yPos, Colors::GREEDY_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "O", "BiDir BFS", yPos, Colors::BIDIR_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "P", "IDDFS", yPos, sf::Color(180, 180, 200), scrollAreaEnd); yPos += 20;
-
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 16;
-            drawKeyIfVisible(window, "R", "BFS vs DFS", yPos, sf::Color(200,200,100), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "Z", "A* vs BFS", yPos, sf::Color(150,200,200), scrollAreaEnd); yPos += 20;
-        } else {
-            drawKeyIfVisible(window, "1", "BFS", yPos, Colors::BFS_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "2", "DFS", yPos, Colors::DFS_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "4", "A*", yPos, Colors::ASTAR_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "5", "Dijkstra", yPos, Colors::DIJKSTRA_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "6", "Greedy", yPos, Colors::GREEDY_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "7", "BiDir BFS", yPos, Colors::BIDIR_PATH, scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "8", "IDDFS", yPos, sf::Color(180, 180, 200), scrollAreaEnd); yPos += 20;
-
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "RACE MODES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 16;
-            drawKeyIfVisible(window, "3", "BFS vs DFS", yPos, sf::Color(200,200,100), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "9", "A* vs BFS", yPos, sf::Color(150,200,200), scrollAreaEnd); yPos += 20;
-        }
-
-        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
-        yPos += 12;
-
-        // ============================================
-        // SPEED CONTROL
-        // ============================================
-        if (yPos > 30 && yPos < scrollAreaEnd) {
-            drawText(window, "SPEED: " + std::to_string(animationSpeed) + "ms",
-                     MAZE_WIDTH + 20, yPos, 10, Colors::TEXT_ACCENT);
-        }
-        yPos += 15;
-        drawKeyIfVisible(window, "+", "Faster", yPos, sf::Color(100, 220, 100), scrollAreaEnd); yPos += 20;
-        drawKeyIfVisible(window, "-", "Slower", yPos, sf::Color(220, 100, 100), scrollAreaEnd); yPos += 20;
-
-        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
-        yPos += 12;
-
-        // ============================================
-        // MODE-SPECIFIC KEYS
-        // ============================================
-        if (currentGameMode == "PRESET") {
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "DIFFICULTY", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 13;
-            drawKeyIfVisible(window, "B", "Beginner", yPos, sf::Color(100, 200, 100), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "I", "Intermediate", yPos, sf::Color(255, 180, 100), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "A", "Advanced", yPos, sf::Color(255, 100, 100), scrollAreaEnd); yPos += 20;
-
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "LEVELS", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 16;
-            drawKeyIfVisible(window, "1-5", "Load level", yPos, Colors::TEXT_ACCENT, scrollAreaEnd); yPos += 20;
-
-            // Terrain mazes highlight
-            if (currentDifficulty == "INTERMEDIATE") {
-                if (yPos > 30 && yPos < scrollAreaEnd) {
-                    drawText(window, "TERRAIN MAZES", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
-                }
-                yPos += 16;
-                drawKeyIfVisible(window, "3", "River Crossing", yPos, sf::Color(84, 160, 255), scrollAreaEnd); yPos += 20;
-                drawKeyIfVisible(window, "4", "Sandy Desert", yPos, sf::Color(255, 195, 105), scrollAreaEnd); yPos += 20;
-                drawKeyIfVisible(window, "5", "Muddy Swamp", yPos, sf::Color(139, 90, 60), scrollAreaEnd); yPos += 20;
-            }
-        } else {
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "PLACEMENT", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 13;
-            drawKeyIfVisible(window, "W", "Wall", yPos, sf::Color(85, 95, 120), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "S", "Start", yPos, sf::Color(46, 213, 115), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "E", "End", yPos, sf::Color(255, 71, 87), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "X", "Erase", yPos, sf::Color(120, 120, 130), scrollAreaEnd); yPos += 20;
-
-            if (yPos > 30 && yPos < scrollAreaEnd) {
-                drawText(window, "TERRAIN", MAZE_WIDTH + 20, yPos + 3, 9, Colors::TEXT_SECONDARY);
-            }
-            yPos += 16;
-            drawKeyIfVisible(window, "F", "Sand (3x)", yPos, sf::Color(255, 195, 105), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "V", "Water (5x)", yPos, sf::Color(84, 160, 255), scrollAreaEnd); yPos += 20;
-            drawKeyIfVisible(window, "D", "Mud (8x)", yPos, sf::Color(139, 90, 60), scrollAreaEnd); yPos += 20;
-        }
-
-        if (yPos > 30 && yPos < scrollAreaEnd) drawDivider(window, yPos + 3);
-        yPos += 12;
-
-        // ============================================
-        // COMMANDS
-        // ============================================
-        if (yPos > 30 && yPos < scrollAreaEnd) {
-            drawText(window, "COMMANDS", MAZE_WIDTH + 20, yPos, 9, Colors::TEXT_SECONDARY);
-        }
-        yPos += 13;
-        drawKeyIfVisible(window, "G", "Clear paths", yPos, sf::Color(150, 200, 220), scrollAreaEnd); yPos += 20;
-        drawKeyIfVisible(window, "C", "Clear all", yPos, sf::Color(220, 150, 150), scrollAreaEnd); yPos += 20;
-        drawKeyIfVisible(window, "M", "Switch mode", yPos, sf::Color(200, 200, 100), scrollAreaEnd); yPos += 20;
-
-        // Calculate max scroll based on content size
-        contentHeight = yPos + scrollOffset - startY;
-        float availableHeight = scrollAreaEnd - scrollAreaStart;
-        maxScroll = std::max(0.0f, contentHeight - availableHeight + 20);
-
-        // ============================================
-        // MASK: Cover overflow above header (so text doesn't leak)
-        // ============================================
-        sf::RectangleShape topMask(sf::Vector2f(UI_PANEL_WIDTH - 2, 50));
-        topMask.setPosition(MAZE_WIDTH + 2, 0);
-        topMask.setFillColor(Colors::BG_MID);
-        window.draw(topMask);
-
-        // Redraw header on top
-        drawText(window, "PATHFORGE", MAZE_WIDTH + 20, 12, 20, Colors::TEXT_PRIMARY, true);
-        drawDivider(window, 42);
-
-        // Bottom mask (so scrolled content doesn't overlap footer)
-        sf::RectangleShape bottomMask(sf::Vector2f(UI_PANEL_WIDTH - 2, 80));
-        bottomMask.setPosition(MAZE_WIDTH + 2, WINDOW_HEIGHT - 70);
-        bottomMask.setFillColor(Colors::BG_MID);
-        window.draw(bottomMask);
-
-        // ============================================
-        // FOOTER (fixed at bottom)
-        // ============================================
-        drawDivider(window, WINDOW_HEIGHT - 65);
-        drawText(window, "SCROLL for more", MAZE_WIDTH + 20, WINDOW_HEIGHT - 55, 10, Colors::TEXT_SECONDARY);
-        drawText(window, "Mouse wheel to scroll", MAZE_WIDTH + 20, WINDOW_HEIGHT - 40, 10, Colors::TEXT_SECONDARY);
-        drawText(window, "v4.0 | PathForge", MAZE_WIDTH + 20, WINDOW_HEIGHT - 22, 10, Colors::TEXT_SECONDARY);
-
-        // ============================================
-        // SCROLL INDICATOR (right side of panel)
-        // ============================================
-        if (maxScroll > 0) {
-            float trackHeight = scrollAreaEnd - scrollAreaStart;
-            sf::RectangleShape track(sf::Vector2f(4, trackHeight));
-            track.setPosition(MAZE_WIDTH + UI_PANEL_WIDTH - 8, scrollAreaStart);
-            track.setFillColor(sf::Color(50, 55, 70));
-            window.draw(track);
-
-            float thumbHeight = std::max(30.0f, trackHeight * (trackHeight / contentHeight));
-            float thumbY = scrollAreaStart + (scrollOffset / maxScroll) * (trackHeight - thumbHeight);
-
-            sf::RectangleShape thumb(sf::Vector2f(4, thumbHeight));
-            thumb.setPosition(MAZE_WIDTH + UI_PANEL_WIDTH - 8, thumbY);
-            thumb.setFillColor(Colors::TEXT_ACCENT);
-            window.draw(thumb);
         }
     }
 
 private:
-    // Helper: draw key only if visible in scroll area
-    void drawKeyIfVisible(sf::RenderWindow& window, const std::string& key,
-                           const std::string& desc, float y, sf::Color accent, float scrollEnd) {
-        if (y > 30 && y < scrollEnd) {
-            drawKeyBinding(window, key, desc, y, accent);
-        }
-    }
-
-    void drawText(sf::RenderWindow& window, const std::string& str,
-                  float x, float y, int size, sf::Color color, bool bold = false) {
+    void drawText(sf::RenderWindow& w, const std::string& str, float x, float y,
+                  unsigned size, sf::Color color, bool bold = false) {
         sf::Text text;
         text.setFont(font);
         text.setString(str);
@@ -386,82 +225,39 @@ private:
         text.setFillColor(color);
         text.setPosition(x, y);
         if (bold) text.setStyle(sf::Text::Bold);
-        window.draw(text);
+        w.draw(text);
     }
 
-    void drawDivider(sf::RenderWindow& window, float y) {
-        sf::RectangleShape line(sf::Vector2f(UI_PANEL_WIDTH - 40, 1));
-        line.setPosition(MAZE_WIDTH + 20, y);
-        line.setFillColor(Colors::BORDER);
-        window.draw(line);
+    void drawButtonRect(sf::RenderWindow& w, sf::FloatRect r, bool hover, sf::Color outline) {
+        sf::RectangleShape rect(sf::Vector2f(r.width, r.height));
+        rect.setPosition(r.left, r.top);
+        rect.setFillColor(hover ? Colors::UI_HOVER : Colors::UI_ELEMENT);
+        rect.setOutlineThickness(1.f);
+        rect.setOutlineColor(outline == sf::Color::Transparent ? Colors::BORDER_DIM : outline);
+        w.draw(rect);
     }
 
-    void drawKeyBinding(sf::RenderWindow& window, const std::string& key,
-                         const std::string& desc, float y, sf::Color accent = sf::Color(0,0,0,0)) {
-        sf::RectangleShape kb(sf::Vector2f(32, 18));
-        kb.setPosition(MAZE_WIDTH + 20, y);
-        kb.setFillColor(Colors::BG_DARK);
-        kb.setOutlineThickness(1.5f);
-        kb.setOutlineColor(accent.a > 0 ? accent : Colors::BORDER_LIGHT);
-        window.draw(kb);
-
-        if (accent.a > 0) {
-            sf::RectangleShape strip(sf::Vector2f(3, 18));
-            strip.setPosition(MAZE_WIDTH + 20, y);
-            strip.setFillColor(accent);
-            window.draw(strip);
-        }
-
-        sf::Color keyTextColor = accent.a > 0 ? accent : Colors::TEXT_PRIMARY;
-        drawText(window, key, MAZE_WIDTH + 28, y + 1, 12, keyTextColor, true);
-        drawText(window, desc, MAZE_WIDTH + 60, y + 2, 12, Colors::TEXT_PRIMARY);
+    void drawControlButton(sf::RenderWindow& w, const std::string& label, float x, float y,
+                           sf::Color accent, bool active) {
+        sf::FloatRect r(x, y, 90.f, CTRL_H);
+        bool hover = r.contains((float)mouseX, (float)mouseY) && active;
+        sf::RectangleShape rect(sf::Vector2f(r.width, r.height));
+        rect.setPosition(r.left, r.top);
+        rect.setFillColor(hover ? Colors::UI_HOVER : Colors::UI_ELEMENT);
+        rect.setOutlineThickness(1.f);
+        rect.setOutlineColor(active ? accent : Colors::BORDER_DIM);
+        w.draw(rect);
+        drawText(w, label, x + 18.f, y + 8.f, 14, active ? Colors::TEXT_PRIMARY : Colors::TEXT_MUTED, true);
     }
 
-    void drawAlgoBox(sf::RenderWindow& window, float y, const std::string& name,
-                      int nodes, int pathLen, bool found, bool running, sf::Color color) {
-        sf::RectangleShape box(sf::Vector2f(UI_PANEL_WIDTH - 40, 70));
-        box.setPosition(MAZE_WIDTH + 20, y);
-        box.setFillColor(Colors::BG_DARK);
-        box.setOutlineThickness(1);
-        box.setOutlineColor(color);
-        window.draw(box);
-
-        sf::RectangleShape strip(sf::Vector2f(4, 70));
-        strip.setPosition(MAZE_WIDTH + 20, y);
-        strip.setFillColor(color);
-        window.draw(strip);
-
-        drawText(window, name, MAZE_WIDTH + 32, y + 6, 14, Colors::TEXT_PRIMARY, true);
-
-        std::string status = running ? "RUNNING..." : (found ? "PATH FOUND" : "NO PATH");
-        sf::Color statusCol = running ? Colors::TEXT_ACCENT : (found ? Colors::START : Colors::END);
-        drawText(window, status, MAZE_WIDTH + UI_PANEL_WIDTH - 100, y + 8, 10, statusCol, true);
-
-        drawText(window, "Nodes:", MAZE_WIDTH + 32, y + 28, 11, Colors::TEXT_SECONDARY);
-        drawText(window, std::to_string(nodes), MAZE_WIDTH + 90, y + 28, 11, Colors::TEXT_PRIMARY, true);
-
-        drawText(window, "Path:", MAZE_WIDTH + 32, y + 46, 11, Colors::TEXT_SECONDARY);
-        drawText(window, std::to_string(pathLen) + " cells", MAZE_WIDTH + 90, y + 46, 11, Colors::TEXT_PRIMARY, true);
-    }
-
-    sf::Color getModeColor() {
-        if (currentMode == "WALL")  return sf::Color(85, 95, 120);
-        if (currentMode == "START") return sf::Color(46, 213, 115);
-        if (currentMode == "END")   return sf::Color(255, 71, 87);
-        if (currentMode == "ERASE") return sf::Color(120, 120, 130);
-        if (currentMode == "SAND")  return sf::Color(255, 195, 105);
-        if (currentMode == "WATER") return sf::Color(84, 160, 255);
-        if (currentMode == "MUD")   return sf::Color(139, 90, 60);
-        return Colors::BUTTON_IDLE;
-    }
-
-    sf::Color getAlgoColor(const std::string& name) {
-        if (name == "BFS")      return Colors::BFS_PATH;
-        if (name == "DFS")      return Colors::DFS_PATH;
-        if (name == "A*")       return Colors::ASTAR_PATH;
-        if (name == "Dijkstra") return Colors::DIJKSTRA_PATH;
-        if (name == "Greedy")   return Colors::GREEDY_PATH;
-        if (name == "BiDir BFS") return Colors::BIDIR_PATH;
-        return Colors::TEXT_ACCENT;
+    void drawMetricBox(sf::RenderWindow& w, float x, float y, const std::string& label, const std::string& value) {
+        sf::RectangleShape box(sf::Vector2f(140.f, 60.f));
+        box.setPosition(x, y);
+        box.setFillColor(Colors::BG_APP);
+        box.setOutlineThickness(1.f);
+        box.setOutlineColor(Colors::BORDER_DIM);
+        w.draw(box);
+        drawText(w, label, x + 10.f, y + 8.f, 11, Colors::TEXT_MUTED);
+        drawText(w, value, x + 10.f, y + 28.f, 20, Colors::ACCENT_TEAL, true);
     }
 };

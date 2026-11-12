@@ -1,13 +1,7 @@
 #pragma once
 #include "Solver.h"
 #include <queue>
-
-// ============================================
-// DIJKSTRA'S ALGORITHM
-// Like BFS but supports cell costs (weights)
-// Uses priority queue based on distance (no heuristic)
-// Perfect for weighted terrain (Part 4)
-// ============================================
+#include <climits>
 
 class DijkstraSolver : public Solver {
 private:
@@ -31,8 +25,10 @@ public:
 
         int sr = grid->getStartRow();
         int sc = grid->getStartCol();
+        int er = grid->getEndRow();
+        int ec = grid->getEndCol();
 
-        if (sr != -1 && sc != -1) {
+        if (sr != -1 && sc != -1 && er != -1 && ec != -1) {
             distance[sr][sc] = 0;
             frontier.push({sr, sc, 0});
         } else {
@@ -40,10 +36,13 @@ public:
         }
     }
 
-    std::string getName() const override { return "Dijkstra"; }
+    std::string getName() const override {
+        return "Dijkstra";
+    }
 
     bool step() override {
         if (finished) return false;
+
         if (frontier.empty()) {
             finished = true;
             return false;
@@ -73,7 +72,6 @@ public:
             if (visited[nr][nc]) continue;
             if (!grid->getCell(nr, nc).isWalkable()) continue;
 
-            // Use cell cost (default 1, but can be higher for terrain)
             int cellCost = grid->getCell(nr, nc).cost;
             int newDist = current.distance + cellCost;
 

@@ -2,38 +2,24 @@
 #include "Solver.h"
 #include <queue>
 #include <cmath>
-
-// ============================================
-// A* ALGORITHM
-// Uses f(n) = g(n) + h(n)
-//   g = actual cost from start
-//   h = Manhattan distance to end (heuristic)
-// Finds shortest path faster than BFS
-// ============================================
+#include <climits>
 
 class AStarSolver : public Solver {
 private:
-    // Node in the priority queue
     struct Node {
         int row, col;
-        int gCost;     // steps from start
-        int fCost;     // g + h
-
-        // For priority queue: smaller f = higher priority
+        int gCost;
+        int fCost;
         bool operator>(const Node& other) const {
+            if (fCost == other.fCost) return gCost > other.gCost;
             return fCost > other.fCost;
         }
     };
 
-    // Min-heap priority queue (smallest f on top)
     std::priority_queue<Node, std::vector<Node>, std::greater<Node>> frontier;
-
-    // Track actual cost to reach each cell
     std::vector<std::vector<int>> gScore;
-
     int endR, endC;
 
-    // Manhattan distance heuristic
     int heuristic(int r, int c) const {
         return std::abs(r - endR) + std::abs(c - endC);
     }
@@ -69,11 +55,9 @@ public:
         Node current = frontier.top();
         frontier.pop();
 
-        // Skip if we already found a better path
         if (visited[current.row][current.col]) return true;
         visited[current.row][current.col] = true;
 
-        // Check if reached end
         if (grid->getCell(current.row, current.col).isEnd()) {
             foundPath = true;
             finished = true;
@@ -84,7 +68,6 @@ public:
         markVisited(grid->getCell(current.row, current.col));
         nodesExplored++;
 
-        // Explore neighbors
         for (int i = 0; i < 4; i++) {
             int nr = current.row + DR[i];
             int nc = current.col + DC[i];
@@ -93,16 +76,16 @@ public:
             if (visited[nr][nc]) continue;
             if (!grid->getCell(nr, nc).isWalkable()) continue;
 
-            int tentativeG = current.gCost + 1;
+            // CORRECT WEIGHT HANDLING: Use the actual cost of the cell being entered
+            int cellCost = grid->getCell(nr, nc).cost;
+            int tentativeG = current.gCost + cellCost;
 
             if (tentativeG < gScore[nr][nc]) {
                 gScore[nr][nc] = tentativeG;
                 parent[nr][nc] = {current.row, current.col};
-                int f = tentativeG + heuristic(nr, nc);
-                frontier.push({nr, nc, tentativeG, f});
+                frontier.push({nr, nc, tentativeG, tentativeG + heuristic(nr, nc)});
             }
         }
-
         return true;
     }
 };

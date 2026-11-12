@@ -89,27 +89,30 @@ public:
     // WALL MANAGEMENT
     // ============================================
     void toggleWall(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
+        if (!inBounds(row, col)) return;
 
-    if (cell.terrain == Terrain::WALL) {
-        cell.terrain = Terrain::EMPTY;
-        cell.cost = COST_EMPTY;
-    } else {
-        cell.terrain = Terrain::WALL;
-        cell.cost = COST_EMPTY;
+        Cell& cell = cells[row][col];
+        if (cell.isStart() || cell.isEnd()) return;
+
+        if (cell.terrain == Terrain::WALL) {
+            cell.terrain = Terrain::EMPTY;
+            cell.cost = COST_EMPTY;
+        } else {
+            cell.terrain = Terrain::WALL;
+            cell.cost = COST_EMPTY;
+        }
     }
-}
 
     // Set a wall directly (used for click-and-drag)
     void setWall(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
-    cell.terrain = Terrain::WALL;
-    cell.cost = COST_EMPTY;  // walls have no cost (can't walk anyway)
-}
+        if (!inBounds(row, col)) return;
+
+        Cell& cell = cells[row][col];
+        if (cell.isStart() || cell.isEnd()) return;
+
+        cell.terrain = Terrain::WALL;
+        cell.cost = COST_EMPTY;
+    }
 
     // ============================================
     // CLEAR OPERATIONS
@@ -131,6 +134,7 @@ public:
                 cells[r][c].reset();
             }
         }
+
         startRow = startCol = endRow = endCol = -1;
     }
 
@@ -143,51 +147,64 @@ public:
     // ============================================
     // GET ALL WALKABLE NEIGHBORS
     // ============================================
-    std::vector<std::pair<int,int>> getNeighbors(int row, int col) const {
-        std::vector<std::pair<int,int>> neighbors;
+    std::vector<std::pair<int, int>> getNeighbors(int row, int col) const {
+        std::vector<std::pair<int, int>> neighbors;
+
         for (int i = 0; i < 4; i++) {
             int nr = row + DR[i];
             int nc = col + DC[i];
+
             if (inBounds(nr, nc) && cells[nr][nc].isWalkable()) {
                 neighbors.push_back({nr, nc});
             }
         }
+
         return neighbors;
     }
 
     // ============================================
-// TERRAIN MANAGEMENT
-// ============================================
-void setSand(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
-    cell.terrain = Terrain::SAND;
-    cell.cost = COST_SAND;
-}
+    // TERRAIN MANAGEMENT
+    // ============================================
+    void setSand(int row, int col) {
+        if (!inBounds(row, col)) return;
 
-void setWater(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
-    cell.terrain = Terrain::WATER;
-    cell.cost = COST_WATER;
-}
+        Cell& cell = cells[row][col];
+        if (cell.isStart() || cell.isEnd()) return;
 
-void setMud(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
-    cell.terrain = Terrain::MUD;
-    cell.cost = COST_MUD;
-}
+        cell.terrain = Terrain::SAND;
+        cell.cost = COST_SAND;
+    }
 
-// Reset cell to normal empty (from terrain)
-void setEmpty(int row, int col) {
-    if (!inBounds(row, col)) return;
-    Cell& cell = cells[row][col];
-    if (cell.isStart() || cell.isEnd()) return;
-    cell.terrain = Terrain::EMPTY;
-    cell.cost = COST_EMPTY;
-}
+    void setWater(int row, int col) {
+        if (!inBounds(row, col)) return;
+
+        Cell& cell = cells[row][col];
+        if (cell.isStart() || cell.isEnd()) return;
+
+        cell.terrain = Terrain::WATER;
+        cell.cost = COST_WATER;
+    }
+
+    void setMud(int row, int col) {
+        if (!inBounds(row, col)) return;
+
+        Cell& cell = cells[row][col];
+        if (cell.isStart() || cell.isEnd()) return;
+
+        cell.terrain = Terrain::MUD;
+        cell.cost = COST_MUD;
+    }
+
+    // Reset cell to normal empty (from terrain)
+    void setEmpty(int row, int col) {
+        if (!inBounds(row, col)) return;
+
+        Cell& cell = cells[row][col];
+
+        if (cell.isStart() || cell.isEnd()) return;
+
+        cell.terrain = Terrain::EMPTY;
+        cell.cost = COST_EMPTY;
+        cell.resetVisual(); // Clear algorithm visualization when erasing
+    }
 };
