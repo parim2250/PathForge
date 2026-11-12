@@ -3,6 +3,8 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <vector>
+#include <functional>
 
 #include "core/Grid.h"
 #include "core/Constants.h"
@@ -21,14 +23,23 @@
 #include "algorithms/BidirectionalBFSSolver.h"
 #include "algorithms/IDDFSSolver.h"
 
+// Include after solver headers so Solver is declared.
+#include "ui/BenchmarkScreen.h"
+
 void mouseToGrid(int mouseX, int mouseY, int& row, int& col) {
     col = (mouseX - GRID_OFFSET_X) / CELL_SIZE;
     row = (mouseY - GRID_OFFSET_Y) / CELL_SIZE;
 }
 
-enum class AppState { STARTUP, PRESET_SELECT, RUNNING };
+enum class AppState {
+    STARTUP,
+    PRESET_SELECT,
+    RUNNING,
+    BENCHMARK
+};
 
 int main() {
+
     sf::RenderWindow window(
         sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT),
         "PathForge - Pathfinding Engine"
@@ -41,78 +52,192 @@ int main() {
     InfoPanel panel;
     StartupScreen startupScreen;
     PresetScreen presetScreen;
+    BenchmarkScreen benchmarkScreen;
 
     panel.loadFont();
     startupScreen.loadFont();
     presetScreen.loadFont();
+    benchmarkScreen.loadFont();
 
     AppState appState = AppState::STARTUP;
 
     bool isDragging = false;
     std::string modeLabel = "Custom Laboratory";
 
-    std::unique_ptr<Solver> solver = nullptr;
+    // Two solvers support normal mode and Race Mode.
+    std::unique_ptr<Solver> solverA = nullptr;
+    std::unique_ptr<Solver> solverB = nullptr;
 
-    bool isSolving = false;
+    bool isSolvingA = false;
+    bool isSolvingB = false;
     bool isPaused = false;
 
     auto algorithmStartTime = std::chrono::steady_clock::now();
     auto lastStepTime = std::chrono::steady_clock::now();
 
-    long long elapsedMs = 0;
+    long long elapsedMsA = 0;
+    long long elapsedMsB = 0;
+
+    // --------------------------------------------------
+    // SOLVER FACTORY
+    // --------------------------------------------------
+
+    auto createSolver = [&](const std::string& algo)
+        -> std::unique_ptr<Solver> {
+
+        if (algo == "BFS")
+            return std::make_unique<BFSSolver>(&grid);
+
+        if (algo == "DFS")
+            return std::make_unique<DFSSolver>(&grid);
+
+        if (algo == "A*")
+            return std::make_unique<AStarSolver>(&grid);
+
+        if (algo == "Dijkstra")
+            return std::make_unique<DijkstraSolver>(&grid);
+
+        if (algo == "Greedy")
+            return std::make_unique<GreedySolver>(&grid);
+
+        if (algo == "BiDir BFS")
+            return std::make_unique<BidirectionalBFSSolver>(&grid);
+
+        if (algo == "IDDFS")
+            return std::make_unique<IDDFSSolver>(&grid);
+
+        return nullptr;
+    };
+
+    // --------------------------------------------------
+    // CLEAR SOLVERS
+    // --------------------------------------------------
 
     auto clearSolver = [&]() {
-        solver = nullptr;
-        isSolving = false;
+
+        solverA = nullptr;
+        solverB = nullptr;
+
+        isSolvingA = false;
+        isSolvingB = false;
         isPaused = false;
 
         panel.setRunning(false);
         panel.setPaused(false);
-        panel.setMetrics(0, 0, 0, 0);
 
-        elapsedMs = 0;
+        panel.setMetrics(0, 0, 0, 0);
+        panel.setMetricsB(0, 0, 0, 0);
+
+        elapsedMsA = 0;
+        elapsedMsB = 0;
     };
 
+    // --------------------------------------------------
+    // APPLY EDITOR TOOLS
+    // --------------------------------------------------
+
     auto applyTool = [&](int row, int col) {
-        if (!grid.inBounds(row, col)) return;
-        if (isSolving) return;
+
+        if (!grid.inBounds(row, col))
+            return;
+
+        if (isSolvingA || isSolvingB)
+            return;
 
         std::string tool = panel.getSelectedTool();
 
-        if (tool == "Wall")      grid.setWall(row, col);
-        else if (tool == "Erase") grid.setEmpty(row, col);
-        else if (tool == "Start") grid.setStart(row, col);
-        else if (tool == "End")   grid.setEnd(row, col);
-        else if (tool == "Sand")  grid.setSand(row, col);
-        else if (tool == "Water") grid.setWater(row, col);
-        else if (tool == "Mud")   grid.setMud(row, col);
+        if (tool == "Wall")
+            grid.setWall(row, col);
+
+        else if (tool == "Erase")
+            grid.setEmpty(row, col);
+
+        else if (tool == "Start")
+            grid.setStart(row, col);
+
+        else if (tool == "End")
+            grid.setEnd(row, col);
+
+        else if (tool == "Sand")
+            grid.setSand(row, col);
+
+        else if (tool == "Water")
+            grid.setWater(row, col);
+
+        else if (tool == "Mud")
+            grid.setMud(row, col);
     };
 
-    auto startAlgorithm = [&]() {
-        if (!grid.hasStart() || !grid.hasEnd()) return;
+    // --------------------------------------------------
+    // PRINT ALGORITHM REPORT
+    // --------------------------------------------------
 
-        grid.clearVisuals();
+    auto printReport = [&](Solver* solver, long long elapsedMs) {
 
-        std::string algo = panel.getSelectedAlgo();
-
-        if (algo == "BFS")
-            solver = std::make_unique<BFSSolver>(&grid);
-        else if (algo == "DFS")
-            solver = std::make_unique<DFSSolver>(&grid);
-        else if (algo == "A*")
-            solver = std::make_unique<AStarSolver>(&grid);
-        else if (algo == "Dijkstra")
-            solver = std::make_unique<DijkstraSolver>(&grid);
-        else if (algo == "Greedy")
-            solver = std::make_unique<GreedySolver>(&grid);
-        else if (algo == "BiDir BFS")
-            solver = std::make_unique<BidirectionalBFSSolver>(&grid);
-        else if (algo == "IDDFS")
-            solver = std::make_unique<IDDFSSolver>(&grid);
-        else
+        if (!solver)
             return;
 
-        isSolving = true;
+        std::cout << "\n  =================================" << std::endl;
+        std::cout << "  ALGORITHM RUN RESULT" << std::endl;
+        std::cout << "  =================================" << std::endl;
+
+        std::cout << "  Algorithm:      "
+                  << solver->getName() << std::endl;
+
+        std::cout << "  Path found:     "
+                  << (solver->hasPath() ? "YES" : "NO") << std::endl;
+
+        std::cout << "  Nodes explored: "
+                  << solver->getNodesExplored() << std::endl;
+
+        std::cout << "  Path length:    "
+                  << solver->getPathLength() << " cells" << std::endl;
+
+        std::cout << "  Path cost:      "
+                  << solver->getPathCost() << std::endl;
+
+        std::cout << "  Exec time:      "
+                  << elapsedMs << " ms" << std::endl;
+
+        std::cout << "  =================================\n" << std::endl;
+    };
+
+    // --------------------------------------------------
+    // START ALGORITHM / RACE
+    // --------------------------------------------------
+
+    auto startAlgorithm = [&]() {
+
+        if (!grid.hasStart() || !grid.hasEnd())
+            return;
+
+        grid.clearVisuals();
+        clearSolver();
+
+        // Solver A: selected algorithm.
+        std::string algoA = panel.getMode() == PanelMode::RACE
+            ? panel.getSelectedAlgoA()
+            : panel.getSelectedAlgo();
+
+        solverA = createSolver(algoA);
+
+        if (solverA)
+            isSolvingA = true;
+
+        // Solver B: only created in Race Mode.
+        if (panel.getMode() == PanelMode::RACE) {
+
+            std::string algoB = panel.getSelectedAlgoB();
+
+            solverB = createSolver(algoB);
+
+            if (solverB)
+                isSolvingB = true;
+        }
+
+        if (!isSolvingA && !isSolvingB)
+            return;
+
         isPaused = false;
 
         panel.setRunning(true);
@@ -121,33 +246,58 @@ int main() {
         algorithmStartTime = std::chrono::steady_clock::now();
         lastStepTime = algorithmStartTime;
 
-        elapsedMs = 0;
-        panel.setMetrics(0, 0, 0, 0);
+        elapsedMsA = 0;
+        elapsedMsB = 0;
     };
+
+    // --------------------------------------------------
+    // FONT FOR NAVIGATION
+    // --------------------------------------------------
 
     sf::Font font;
     font.loadFromFile("C:/Windows/Fonts/segoeui.ttf");
 
+    // --------------------------------------------------
+    // MAIN LOOP
+    // --------------------------------------------------
+
     while (window.isOpen()) {
+
         sf::Event event;
 
         int mx = sf::Mouse::getPosition(window).x;
         int my = sf::Mouse::getPosition(window).y;
 
-        panel.updateHover(mx, my);
+        if (appState == AppState::RUNNING)
+            panel.updateHover(mx, my);
 
         if (appState == AppState::PRESET_SELECT)
             presetScreen.updateHover(mx, my);
 
+        if (appState == AppState::BENCHMARK)
+            benchmarkScreen.updateHover(mx, my);
+
+        // --------------------------------------------------
+        // EVENT HANDLING
+        // --------------------------------------------------
+
         while (window.pollEvent(event)) {
+
             if (event.type == sf::Event::Closed)
                 window.close();
+
+            // ---------------- ESCAPE ----------------
 
             if (event.type == sf::Event::KeyPressed &&
                 event.key.code == sf::Keyboard::Escape) {
 
-                if (appState == AppState::RUNNING ||
-                    appState == AppState::PRESET_SELECT) {
+                if (appState == AppState::BENCHMARK) {
+
+                    appState = AppState::RUNNING;
+                }
+
+                else if (appState == AppState::RUNNING ||
+                         appState == AppState::PRESET_SELECT) {
 
                     appState = AppState::STARTUP;
 
@@ -155,28 +305,51 @@ int main() {
                     clearSolver();
 
                     presetScreen.reset();
+
                     modeLabel = "Custom Laboratory";
+                    isDragging = false;
                 }
+
                 else {
                     window.close();
                 }
             }
 
-            // ---------- STARTUP ----------
+            // ---------------- STARTUP ----------------
+
             if (appState == AppState::STARTUP) {
+
+                if (event.type == sf::Event::MouseMoved) {
+
+                    startupScreen.update(
+                        0.0f,
+                        event.mouseMove.x,
+                        event.mouseMove.y
+                    );
+                }
+
                 if (event.type == sf::Event::MouseButtonPressed &&
                     event.mouseButton.button == sf::Mouse::Left) {
+
+                    startupScreen.update(
+                        0.0f,
+                        event.mouseButton.x,
+                        event.mouseButton.y
+                    );
 
                     int choice = startupScreen.checkClick();
 
                     if (choice == 1) {
+
                         grid.clearAll();
                         clearSolver();
 
                         modeLabel = "Custom Laboratory";
                         appState = AppState::RUNNING;
                     }
+
                     else if (choice == 2) {
+
                         presetScreen.reset();
                         appState = AppState::PRESET_SELECT;
                     }
@@ -185,15 +358,31 @@ int main() {
                 continue;
             }
 
-            // ---------- PRESET SELECT ----------
+            // ---------------- PRESET SELECT ----------------
+
             if (appState == AppState::PRESET_SELECT) {
+
+                if (event.type == sf::Event::MouseMoved) {
+
+                    presetScreen.updateHover(
+                        event.mouseMove.x,
+                        event.mouseMove.y
+                    );
+                }
+
                 if (event.type == sf::Event::MouseButtonPressed &&
                     event.mouseButton.button == sf::Mouse::Left) {
 
-                    int result = presetScreen.handleClick(mx, my);
+                    int clickX = event.mouseButton.x;
+                    int clickY = event.mouseButton.y;
+
+                    presetScreen.updateHover(clickX, clickY);
+
+                    int result = presetScreen.handleClick(clickX, clickY);
 
                     // 11..15 represent levels 1..5.
                     if (result >= 11 && result <= 15) {
+
                         int level = result - 10;
 
                         Difficulty diff = presetScreen.getDifficulty();
@@ -201,17 +390,59 @@ int main() {
                         grid.clearAll();
                         clearSolver();
 
-                        MazeLoader::loadPreset(grid, diff, level);
+                        bool loaded = MazeLoader::loadPreset(
+                            grid,
+                            diff,
+                            level
+                        );
 
-                        auto info = PresetMazes::getInfo(diff, level);
+                        if (loaded) {
 
-                        std::string diffName =
-                            MazeLoader::difficultyName(diff);
+                            auto info = PresetMazes::getInfo(diff, level);
 
-                        modeLabel =
-                            "Preset / " + diffName +
-                            " / Lv" + std::to_string(level) +
-                            " - " + info.name;
+                            std::string diffName =
+                                MazeLoader::difficultyName(diff);
+
+                            modeLabel =
+                                "Preset / " + diffName +
+                                " / Lv" + std::to_string(level) +
+                                " - " + info.name;
+
+                            appState = AppState::RUNNING;
+                        }
+                        else {
+
+                            grid.clearAll();
+
+                            std::cerr
+                                << "Preset loading failed. "
+                                << "Please select another level."
+                                << std::endl;
+                        }
+                    }
+                }
+
+                continue;
+            }
+
+            // ---------------- BENCHMARK SCREEN ----------------
+
+            if (appState == AppState::BENCHMARK) {
+
+                if (event.type == sf::Event::MouseMoved) {
+
+                    benchmarkScreen.updateHover(
+                        event.mouseMove.x,
+                        event.mouseMove.y
+                    );
+                }
+
+                if (event.type == sf::Event::MouseButtonPressed &&
+                    event.mouseButton.button == sf::Mouse::Left) {
+
+                    if (benchmarkScreen.handleClick(
+                            event.mouseButton.x,
+                            event.mouseButton.y)) {
 
                         appState = AppState::RUNNING;
                     }
@@ -220,76 +451,139 @@ int main() {
                 continue;
             }
 
-            // ---------- RUNNING ----------
-            if (event.type == sf::Event::MouseButtonPressed &&
-                event.mouseButton.button == sf::Mouse::Left) {
+            // ---------------- RUNNING ----------------
 
-                if (mx < MAZE_WIDTH) {
-                    int row, col;
+            if (appState == AppState::RUNNING) {
 
-                    mouseToGrid(mx, my, row, col);
+                // Mouse click.
+                if (event.type == sf::Event::MouseButtonPressed &&
+                    event.mouseButton.button == sf::Mouse::Left) {
 
-                    applyTool(row, col);
-                    isDragging = true;
-                }
-                else {
-                    std::string cmd = panel.handleClick(mx, my);
+                    int clickX = event.mouseButton.x;
+                    int clickY = event.mouseButton.y;
 
-                    if (cmd == "CMD_RUN") {
-                        startAlgorithm();
+                    if (clickX < MAZE_WIDTH) {
+
+                        int row, col;
+
+                        mouseToGrid(clickX, clickY, row, col);
+
+                        applyTool(row, col);
+
+                        isDragging = true;
                     }
-                    else if (cmd == "CMD_PAUSE") {
-                        if (isSolving) {
-                            isPaused = !isPaused;
-                            panel.setPaused(isPaused);
+
+                    else {
+
+                        panel.updateHover(clickX, clickY);
+
+                        std::string cmd = panel.handleClick(
+                            clickX,
+                            clickY
+                        );
+
+                        if (cmd == "CMD_RUN") {
+
+                            startAlgorithm();
+                        }
+
+                        else if (cmd == "CMD_PAUSE") {
+
+                            if (isSolvingA || isSolvingB) {
+
+                                isPaused = !isPaused;
+
+                                panel.setPaused(isPaused);
+                            }
+                        }
+
+                        else if (cmd == "CMD_RESET") {
+
+                            grid.clearVisuals();
+                            clearSolver();
+                        }
+
+                        else if (cmd == "CMD_RACE_ALL") {
+
+                            if (grid.hasStart() && grid.hasEnd()) {
+
+                                grid.clearVisuals();
+                                clearSolver();
+
+                                std::vector<std::string> allAlgos = {
+                                    "BFS",
+                                    "DFS",
+                                    "A*",
+                                    "Dijkstra",
+                                    "Greedy",
+                                    "BiDir BFS",
+                                    "IDDFS"
+                                };
+
+                                benchmarkScreen.runBenchmark(
+                                    grid,
+                                    allAlgos,
+                                    createSolver
+                                );
+
+                                appState = AppState::BENCHMARK;
+                            }
+                        }
+
+                        // TOOL_CHANGE, ALGO_CHANGE and SPEED_CHANGE
+                        // are already handled by InfoPanel.
+                    }
+                }
+
+                // Mouse release.
+                if (event.type == sf::Event::MouseButtonReleased &&
+                    event.mouseButton.button == sf::Mouse::Left) {
+
+                    isDragging = false;
+                }
+
+                // Mouse movement and drag painting.
+                if (event.type == sf::Event::MouseMoved) {
+
+                    int moveX = event.mouseMove.x;
+                    int moveY = event.mouseMove.y;
+
+                    if (moveX < MAZE_WIDTH) {
+
+                        int row, col;
+
+                        mouseToGrid(moveX, moveY, row, col);
+
+                        if (grid.inBounds(row, col)) {
+
+                            renderer.setHover(row, col);
+
+                            if (isDragging)
+                                applyTool(row, col);
+                        }
+
+                        else {
+                            renderer.clearHover();
                         }
                     }
-                    else if (cmd == "CMD_RESET") {
-                        grid.clearVisuals();
-                        clearSolver();
-                    }
-                    else if (cmd == "TOOL_CHANGE" ||
-                             cmd == "ALGO_CHANGE" ||
-                             cmd == "SPEED_CHANGE") {
-                        // State is already updated inside InfoPanel.
-                    }
-                }
-            }
 
-            if (event.type == sf::Event::MouseButtonReleased &&
-                event.mouseButton.button == sf::Mouse::Left) {
-
-                isDragging = false;
-            }
-
-            if (event.type == sf::Event::MouseMoved) {
-                if (mx < MAZE_WIDTH) {
-                    int row, col;
-
-                    mouseToGrid(mx, my, row, col);
-
-                    if (grid.inBounds(row, col)) {
-                        renderer.setHover(row, col);
-
-                        if (isDragging)
-                            applyTool(row, col);
-                    }
                     else {
                         renderer.clearHover();
+                        panel.updateHover(moveX, moveY);
                     }
-                }
-                else {
-                    renderer.clearHover();
                 }
             }
         }
 
-        // ---------- ALGORITHM TICK ----------
+        // --------------------------------------------------
+        // ALGORITHM TICK
+        // --------------------------------------------------
+
+        bool solvingAny = isSolvingA || isSolvingB;
+
         if (appState == AppState::RUNNING &&
-            isSolving &&
-            !isPaused &&
-            solver &&
-            !solver->isFinished()) {
+            solvingAny &&
+            !isPaused) {
 
             auto now = std::chrono::steady_clock::now();
 
@@ -299,100 +593,163 @@ int main() {
                 ).count();
 
             if (waitMs >= panel.getSpeed()) {
+
                 lastStepTime = now;
 
-                // 1 ms = fastest, 200 ms = slowest.
                 int speedMs = panel.getSpeed();
                 int stepsPerTick;
 
-                if (speedMs <= 1) {
+                if (speedMs <= 1)
                     stepsPerTick = 100000;
-                }
-                else if (speedMs <= 5) {
+
+                else if (speedMs <= 5)
                     stepsPerTick = 2500;
-                }
-                else if (speedMs <= 10) {
+
+                else if (speedMs <= 10)
                     stepsPerTick = 400;
-                }
-                else if (speedMs <= 20) {
+
+                else if (speedMs <= 20)
                     stepsPerTick = 80;
-                }
-                else if (speedMs <= 40) {
+
+                else if (speedMs <= 40)
                     stepsPerTick = 20;
-                }
-                else if (speedMs <= 80) {
+
+                else if (speedMs <= 80)
                     stepsPerTick = 5;
-                }
-                else {
+
+                else
                     stepsPerTick = 1;
-                }
 
+                // Step both solvers equally for a fair race.
                 for (int i = 0; i < stepsPerTick; i++) {
-                    if (solver->isFinished())
-                        break;
 
-                    solver->step();
+                    if (isSolvingA &&
+                        solverA &&
+                        !solverA->isFinished()) {
+
+                        solverA->step();
+                    }
+
+                    if (isSolvingB &&
+                        solverB &&
+                        !solverB->isFinished()) {
+
+                        solverB->step();
+                    }
+
+                    bool doneA = !isSolvingA ||
+                                 !solverA ||
+                                 solverA->isFinished();
+
+                    bool doneB = !isSolvingB ||
+                                 !solverB ||
+                                 solverB->isFinished();
+
+                    if (doneA && doneB)
+                        break;
                 }
 
-                // Capture time AFTER processing the batch.
                 auto finishedAt = std::chrono::steady_clock::now();
 
-                elapsedMs =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                        finishedAt - algorithmStartTime
-                    ).count();
+                // ---------------- SOLVER A ----------------
 
-                panel.setMetrics(
-                    solver->getNodesExplored(),
-                    solver->getPathLength(),
-                    solver->getPathCost(),
-                    elapsedMs
-                );
+                if (isSolvingA && solverA) {
 
-                if (solver->isFinished()) {
-                    isSolving = false;
+                    elapsedMsA =
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            finishedAt - algorithmStartTime
+                        ).count();
+
+                    panel.setMetrics(
+                        solverA->getNodesExplored(),
+                        solverA->getPathLength(),
+                        solverA->getPathCost(),
+                        elapsedMsA
+                    );
+
+                    if (solverA->isFinished()) {
+
+                        isSolvingA = false;
+
+                        printReport(
+                            solverA.get(),
+                            elapsedMsA
+                        );
+                    }
+                }
+
+                // ---------------- SOLVER B ----------------
+
+                if (isSolvingB && solverB) {
+
+                    elapsedMsB =
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            finishedAt - algorithmStartTime
+                        ).count();
+
+                    panel.setMetricsB(
+                        solverB->getNodesExplored(),
+                        solverB->getPathLength(),
+                        solverB->getPathCost(),
+                        elapsedMsB
+                    );
+
+                    if (solverB->isFinished()) {
+
+                        isSolvingB = false;
+
+                        printReport(
+                            solverB.get(),
+                            elapsedMsB
+                        );
+                    }
+                }
+
+                // Both algorithms have finished.
+                if (!isSolvingA && !isSolvingB) {
+
                     panel.setRunning(false);
-
-                    int nodes = solver->getNodesExplored();
-                    int len   = solver->getPathLength();
-                    int cost  = solver->getPathCost();
-                    bool ok   = solver->hasPath();
-
-                    panel.setMetrics(nodes, len, cost, elapsedMs);
-
-                    // Per-algorithm run report (one block every time you press Run)
-                    std::cout << "  =================================" << std::endl;
-                    std::cout << "  ALGORITHM RUN RESULT" << std::endl;
-                    std::cout << "  =================================" << std::endl;
-                    std::cout << "  Algorithm:      " << solver->getName() << std::endl;
-                    std::cout << "  Path found:     " << (ok ? "YES" : "NO") << std::endl;
-                    std::cout << "  Nodes explored: " << nodes << std::endl;
-                    std::cout << "  Path length:    " << len << " cells" << std::endl;
-                    std::cout << "  Path cost:      " << cost << std::endl;
-                    std::cout << "  Exec time:      " << elapsedMs << " ms" << std::endl;
-                    std::cout << "  =================================" << std::endl;
-                    std::cout << std::endl;
                 }
             }
         }
-        else if (isSolving && isPaused) {
-            algorithmStartTime +=
-                std::chrono::steady_clock::now() - lastStepTime;
 
-            lastStepTime = std::chrono::steady_clock::now();
+        // --------------------------------------------------
+        // PAUSE TIMER HANDLING
+        // --------------------------------------------------
+
+        else if (solvingAny && isPaused) {
+
+            auto now = std::chrono::steady_clock::now();
+
+            algorithmStartTime += now - lastStepTime;
+
+            lastStepTime = now;
         }
 
-        // ---------- DRAW ----------
+        // --------------------------------------------------
+        // DRAW
+        // --------------------------------------------------
+
         window.clear(Colors::BG_APP);
 
         if (appState == AppState::STARTUP) {
-            startupScreen.update(1.0f / 60.0f, mx, my);
+
+            startupScreen.update(
+                1.0f / 60.0f,
+                mx,
+                my
+            );
+
             startupScreen.render(window);
         }
+
         else if (appState == AppState::PRESET_SELECT) {
+
             presetScreen.render(window);
         }
+
         else {
+
             renderer.render(window, grid);
 
             sf::RectangleShape navBg(
@@ -403,12 +760,16 @@ int main() {
             );
 
             navBg.setFillColor(Colors::BG_APP);
+
             window.draw(navBg);
 
             sf::Text navText;
 
             navText.setFont(font);
-            navText.setString("PATHFORGE   /   " + modeLabel);
+            navText.setString(
+                "PATHFORGE   /   " + modeLabel
+            );
+
             navText.setCharacterSize(14);
             navText.setFillColor(Colors::TEXT_PRIMARY);
             navText.setPosition(20.f, 20.f);
@@ -416,6 +777,12 @@ int main() {
             window.draw(navText);
 
             panel.render(window);
+
+            // Benchmark overlay.
+            if (appState == AppState::BENCHMARK) {
+
+                benchmarkScreen.render(window);
+            }
         }
 
         window.display();

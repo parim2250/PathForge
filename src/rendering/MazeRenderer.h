@@ -57,28 +57,39 @@ private:
             drawEmptyCell(window, x, y, size, cellColor);
         }
 
-        // Paths
-        if (cell.bfsPath && cell.dfsPath) { drawOverlayCell(window, x, y, size, Colors::PATH_OVERLAP, hasTerrain); return; }
-
-        if (cell.bfsPath)      { drawOverlayCell(window, x, y, size, Colors::BFS_PATH, hasTerrain); return; }
-        if (cell.dfsPath)      { drawOverlayCell(window, x, y, size, Colors::DFS_PATH, hasTerrain); return; }
-        if (cell.astarPath)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_PATH, hasTerrain); return; }
-        if (cell.dijkstraPath) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_PATH, hasTerrain); return; }
-        if (cell.greedyPath)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_PATH, hasTerrain); return; }
-        if (cell.bidirPath)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_PATH, hasTerrain); return; }
-        if (cell.iddfsPath)    { drawOverlayCell(window, x, y, size, Colors::IDDFS_PATH, hasTerrain); return; }
-
-        // Visited cells
+        // 1. Dynamic Overlap Detection for SOLID PATHS
+        int pathCount = (int)cell.bfsPath + (int)cell.dfsPath + (int)cell.astarPath + 
+                         (int)cell.dijkstraPath + (int)cell.greedyPath + (int)cell.bidirPath + (int)cell.iddfsPath;
+        if (pathCount >= 2) {
+            drawOverlayCell(window, x, y, size, Colors::OVERLAP_PATH, hasTerrain); 
+            return; 
+        } else if (pathCount == 1) {
+            if (cell.bfsPath)      { drawOverlayCell(window, x, y, size, Colors::BFS_PATH, hasTerrain); return; }
+            if (cell.dfsPath)      { drawOverlayCell(window, x, y, size, Colors::DFS_PATH, hasTerrain); return; }
+            if (cell.astarPath)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_PATH, hasTerrain); return; }
+            if (cell.dijkstraPath) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_PATH, hasTerrain); return; }
+            if (cell.greedyPath)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_PATH, hasTerrain); return; }
+            if (cell.bidirPath)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_PATH, hasTerrain); return; }
+            if (cell.iddfsPath)    { drawOverlayCell(window, x, y, size, Colors::IDDFS_PATH, hasTerrain); return; }
+        }
+        
         if (cell.isFrontier) { drawOverlayCell(window, x, y, size, Colors::FRONTIER, hasTerrain); return; }
-        if (cell.bfsVisited && cell.dfsVisited) { drawOverlayCell(window, x, y, size, Colors::BOTH_VISITED, hasTerrain); return; }
 
-        if (cell.bfsVisited)      { drawOverlayCell(window, x, y, size, Colors::BFS_VISITED, hasTerrain); return; }
-        if (cell.dfsVisited)      { drawOverlayCell(window, x, y, size, Colors::DFS_VISITED, hasTerrain); return; }
-        if (cell.astarVisited)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_VISITED, hasTerrain); return; }
-        if (cell.dijkstraVisited) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_VISITED, hasTerrain); return; }
-        if (cell.greedyVisited)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_VISITED, hasTerrain); return; }
-        if (cell.bidirVisited)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_VISITED, hasTerrain); return; }
-        if (cell.iddfsVisited)    { drawOverlayCell(window, x, y, size, Colors::IDDFS_VISITED, hasTerrain); return; }
+        // 2. Dynamic Overlap Detection for VISITED TINTS
+        int visCount = (int)cell.bfsVisited + (int)cell.dfsVisited + (int)cell.astarVisited + 
+                        (int)cell.dijkstraVisited + (int)cell.greedyVisited + (int)cell.bidirVisited + (int)cell.iddfsVisited;
+        if (visCount >= 2) {
+            drawOverlayCell(window, x, y, size, Colors::OVERLAP_VISITED, hasTerrain); 
+            return; 
+        } else if (visCount == 1) {
+            if (cell.bfsVisited)      { drawOverlayCell(window, x, y, size, Colors::BFS_VISITED, hasTerrain); return; }
+            if (cell.dfsVisited)      { drawOverlayCell(window, x, y, size, Colors::DFS_VISITED, hasTerrain); return; }
+            if (cell.astarVisited)    { drawOverlayCell(window, x, y, size, Colors::ASTAR_VISITED, hasTerrain); return; }
+            if (cell.dijkstraVisited) { drawOverlayCell(window, x, y, size, Colors::DIJKSTRA_VISITED, hasTerrain); return; }
+            if (cell.greedyVisited)   { drawOverlayCell(window, x, y, size, Colors::GREEDY_VISITED, hasTerrain); return; }
+            if (cell.bidirVisited)    { drawOverlayCell(window, x, y, size, Colors::BIDIR_VISITED, hasTerrain); return; }
+            if (cell.iddfsVisited)    { drawOverlayCell(window, x, y, size, Colors::IDDFS_VISITED, hasTerrain); return; }
+        }
     }
 
     void drawEmptyCell(sf::RenderWindow& window, float x, float y, float size, sf::Color color) {

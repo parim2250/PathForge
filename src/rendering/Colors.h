@@ -49,6 +49,7 @@ namespace Colors {
     const sf::Color DIJKSTRA_VISITED = sf::Color(74, 222, 128, 80);
     const sf::Color GREEDY_VISITED   = sf::Color(251, 113, 133, 80);
     const sf::Color BIDIR_VISITED    = sf::Color(251, 146, 60, 80);
+    const sf::Color IDDFS_VISITED    = sf::Color(45, 212, 191, 80);
     const sf::Color BOTH_VISITED     = sf::Color(148, 163, 184, 100);
 
     const sf::Color BFS_PATH         = sf::Color(56, 189, 248);
@@ -57,10 +58,16 @@ namespace Colors {
     const sf::Color DIJKSTRA_PATH    = sf::Color(74, 222, 128);
     const sf::Color GREEDY_PATH      = sf::Color(251, 113, 133);
     const sf::Color BIDIR_PATH       = sf::Color(251, 146, 60);
+    const sf::Color IDDFS_PATH       = sf::Color(45, 212, 191);
     const sf::Color QLEARN_PATH      = sf::Color(0, 245, 212);
 
     const sf::Color PATH_OVERLAP     = ACCENT_TEAL;
     const sf::Color FRONTIER         = sf::Color(255, 255, 255, 180);
-    const sf::Color IDDFS_VISITED = sf::Color(45, 212, 191, 80);
-const sf::Color IDDFS_PATH    = sf::Color(45, 212, 191);
+
+    // NEW: Universal Overlap Colors for Race Mode
+    const sf::Color OVERLAP_VISITED  = sf::Color(226, 232, 240, 110); // Silvery-white tint
+    const sf::Color OVERLAP_PATH     = sf::Color(255, 215, 0);        // Bright solid Gold
+    inline const sf::Color BORDER = BORDER_DIM;
+    inline const sf::Color BUTTON_BG = UI_ELEMENT;
+    inline const sf::Color BUTTON_HOVER = UI_HOVER;
 }
