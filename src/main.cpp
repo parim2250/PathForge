@@ -14,6 +14,7 @@
 #include "ui/StartupScreen.h"
 #include "ui/PresetScreen.h"
 #include "mazes/MazeLoader.h"
+#include "mazes/MazeGenerator.h"
 
 #include "algorithms/BFSSolver.h"
 #include "algorithms/DFSSolver.h"
@@ -501,6 +502,12 @@ int main() {
 
                             grid.clearVisuals();
                             clearSolver();
+                        }
+
+                        else if (cmd == "CMD_GEN_MAZE") {
+                            clearSolver(); // Stop any running algorithms
+                            std::string genAlgo = panel.getSelectedGenAlgo();
+                            MazeGenerator::generate(grid, genAlgo);
                         }
 
                         else if (cmd == "CMD_RACE_ALL") {

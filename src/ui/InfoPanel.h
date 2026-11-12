@@ -20,6 +20,18 @@ private:
     std::string selectedAlgo = "A*";
     bool dropdownOpen = false;
 
+    // Maze Generator State
+    std::vector<std::string> m_genAlgos = { "Backtracker", "Prim's", "Division" };
+    int m_genAlgoIdx = 0;
+
+    sf::RectangleShape m_genAlgoBtn;
+    sf::Text m_genAlgoText;
+    bool m_genAlgoHovered = false;
+
+    sf::RectangleShape m_genRunBtn;
+    sf::Text m_genRunText;
+    bool m_genRunHovered = false;
+
     // Race State
     std::string selectedAlgoA = "A*";
     std::string selectedAlgoB = "BFS";
@@ -44,15 +56,76 @@ private:
     static constexpr float CTRL_H = 36.f;
     static constexpr float DROP_H = 36.f;
 
+    void layoutButtons() {
+        if (!fontLoaded) return;
+
+        float panelX = startX;
+        float pad = PAD;
+        float btnW = (float)UI_PANEL_WIDTH - pad * 2.f;
+        float btnH = 32.f;
+
+        // Maze Generator layout positioned below metrics/brushes
+        float y = 535.f;
+
+        m_genAlgoBtn.setSize(sf::Vector2f(btnW, btnH));
+        m_genAlgoBtn.setPosition(panelX + pad, y);
+        m_genAlgoBtn.setFillColor(Colors::UI_ELEMENT);
+        m_genAlgoBtn.setOutlineThickness(1.f);
+        m_genAlgoBtn.setOutlineColor(Colors::BORDER_DIM);
+
+        m_genAlgoText.setFont(font);
+        m_genAlgoText.setString("Algo: " + m_genAlgos[m_genAlgoIdx]);
+        m_genAlgoText.setCharacterSize(14);
+        m_genAlgoText.setFillColor(Colors::TEXT_PRIMARY);
+        centerText(m_genAlgoText, m_genAlgoBtn);
+
+        y += btnH + 8.f;
+
+        m_genRunBtn.setSize(sf::Vector2f(btnW, btnH));
+        m_genRunBtn.setPosition(panelX + pad, y);
+        m_genRunBtn.setFillColor(sf::Color(21, 128, 61));
+        m_genRunBtn.setOutlineThickness(1.f);
+        m_genRunBtn.setOutlineColor(Colors::BORDER_DIM);
+
+        m_genRunText.setFont(font);
+        m_genRunText.setString("Generate Maze");
+        m_genRunText.setCharacterSize(14);
+        m_genRunText.setFillColor(Colors::TEXT_PRIMARY);
+        centerText(m_genRunText, m_genRunBtn);
+    }
+
+    void centerText(sf::Text& text, const sf::RectangleShape& btn) {
+        sf::FloatRect tb = text.getLocalBounds();
+        sf::FloatRect bb = btn.getGlobalBounds();
+        text.setPosition(
+            bb.left + (bb.width - tb.width) * 0.5f - tb.left,
+            bb.top + (bb.height - tb.height) * 0.5f - tb.top - 1.f
+        );
+    }
+
 public:
     bool loadFont() {
         if (font.loadFromFile("C:/Windows/Fonts/segoeui.ttf") || font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
-            fontLoaded = true; return true;
+            fontLoaded = true;
+            layoutButtons();
+            return true;
         }
         return false;
     }
 
-    void updateHover(int x, int y) { mouseX = x; mouseY = y; }
+    void updateHover(int x, int y) {
+        mouseX = x;
+        mouseY = y;
+
+        if (currentMode == PanelMode::STANDARD) {
+            m_genAlgoHovered = m_genAlgoBtn.getGlobalBounds().contains(static_cast<float>(mouseX), static_cast<float>(mouseY));
+            m_genAlgoBtn.setFillColor(m_genAlgoHovered ? Colors::UI_HOVER : Colors::UI_ELEMENT);
+
+            m_genRunHovered = m_genRunBtn.getGlobalBounds().contains(static_cast<float>(mouseX), static_cast<float>(mouseY));
+            m_genRunBtn.setFillColor(m_genRunHovered ? sf::Color(34, 197, 94) : sf::Color(21, 128, 61));
+        }
+    }
+
     void setRunning(bool r) { isRunning = r; }
     void setPaused(bool p) { isPaused = p; }
     
@@ -63,6 +136,7 @@ public:
     std::string getSelectedAlgoA() const { return selectedAlgoA; }
     std::string getSelectedAlgoB() const { return selectedAlgoB; }
     std::string getSelectedTool() const { return selectedTool; }
+    std::string getSelectedGenAlgo() const { return m_genAlgos[m_genAlgoIdx]; }
     int getSpeed() const { return speedMs; }
     PanelMode getMode() const { return currentMode; }
 
@@ -70,6 +144,17 @@ public:
         if (x < startX) { dropdownOpen = dropdownAOpen = dropdownBOpen = false; return ""; }
 
         if (currentMode == PanelMode::STANDARD) {
+            // Check generator clicks first
+            if (m_genAlgoHovered) {
+                m_genAlgoIdx = (m_genAlgoIdx + 1) % m_genAlgos.size();
+                m_genAlgoText.setString("Algo: " + m_genAlgos[m_genAlgoIdx]);
+                centerText(m_genAlgoText, m_genAlgoBtn);
+                return "CMD_GEN_ALGO_CHANGE";
+            }
+            if (m_genRunHovered) {
+                return "CMD_GEN_MAZE";
+            }
+
             // Dropdown Standard
             sf::FloatRect dropRect(startX + PAD, 60.f, UI_PANEL_WIDTH - PAD * 2, DROP_H);
             if (dropRect.contains((float)x, (float)y)) { dropdownOpen = !dropdownOpen; return ""; }
@@ -89,10 +174,10 @@ public:
             if (sf::FloatRect(startX + PAD + 200.f, 160.f, 90.f, CTRL_H).contains((float)x, (float)y)) return "CMD_RESET";
 
             // Bottom Buttons: Race Mode & Race All
-            if (sf::FloatRect(startX + PAD, 620.f, 140.f, CTRL_H).contains((float)x, (float)y)) {
+            if (sf::FloatRect(startX + PAD, 645.f, 140.f, CTRL_H).contains((float)x, (float)y)) {
                 currentMode = PanelMode::RACE; return "CMD_RESET"; 
             }
-            if (sf::FloatRect(startX + PAD + 150.f, 620.f, 140.f, CTRL_H).contains((float)x, (float)y)) {
+            if (sf::FloatRect(startX + PAD + 150.f, 645.f, 140.f, CTRL_H).contains((float)x, (float)y)) {
                 return "CMD_RACE_ALL";
             }
 
@@ -127,7 +212,7 @@ public:
             if (sf::FloatRect(startX + PAD + 200.f, 190.f, 90.f, CTRL_H).contains((float)x, (float)y)) return "CMD_RESET";
 
             // Exit Race Mode
-            if (sf::FloatRect(startX + PAD, 620.f, UI_PANEL_WIDTH - PAD * 2, CTRL_H).contains((float)x, (float)y)) {
+            if (sf::FloatRect(startX + PAD, 645.f, UI_PANEL_WIDTH - PAD * 2, CTRL_H).contains((float)x, (float)y)) {
                 currentMode = PanelMode::STANDARD; return "CMD_RESET";
             }
         }
@@ -201,14 +286,19 @@ private:
             drawText(w, tools[i], tx + 14.f, ty + 6.f, 13, active ? Colors::TEXT_PRIMARY : Colors::TEXT_SECONDARY);
         }
 
-        drawText(w, "REAL-TIME METRICS", startX + PAD, 452.f, 12, Colors::TEXT_MUTED, true);
-        drawMetricBox(w, startX + PAD, 480.f, "Nodes Explored", std::to_string(m_nodes));
-        drawMetricBox(w, startX + PAD + 150.f, 480.f, "Path Length", std::to_string(m_pathLen));
-        drawMetricBox(w, startX + PAD, 550.f, "Path Cost", std::to_string(m_cost));
-        drawMetricBox(w, startX + PAD + 150.f, 550.f, "Exec Time", std::to_string(m_time) + "ms");
+        drawText(w, "REAL-TIME METRICS", startX + PAD, 432.f, 12, Colors::TEXT_MUTED, true);
+        drawMetricBox(w, startX + PAD, 455.f, "Nodes Explored", std::to_string(m_nodes));
+        drawMetricBox(w, startX + PAD + 150.f, 455.f, "Path Length", std::to_string(m_pathLen));
 
-        drawControlButton(w, "Race Mode", startX + PAD, 620.f, Colors::ACCENT_PURPLE, true);
-        drawControlButton(w, "Race All", startX + PAD + 150.f, 620.f, Colors::OVERLAP_PATH, true);
+        // Maze Generator Section
+        drawText(w, "MAZE GENERATOR", startX + PAD, 520.f, 12, Colors::TEXT_MUTED, true);
+        w.draw(m_genAlgoBtn);
+        w.draw(m_genAlgoText);
+        w.draw(m_genRunBtn);
+        w.draw(m_genRunText);
+
+        drawControlButton(w, "Race Mode", startX + PAD, 645.f, Colors::ACCENT_PURPLE, true);
+        drawControlButton(w, "Race All", startX + PAD + 150.f, 645.f, Colors::OVERLAP_PATH, true);
 
         if (dropdownOpen) renderDropdownList(w, 60.f, selectedAlgo, algos, false);
     }
@@ -245,9 +335,9 @@ private:
         drawMetricBox(w, startX + PAD + 150.f, 555.f, "Exec Time", std::to_string(m_timeB) + "ms");
 
         // Exit button
-        sf::FloatRect exitBtn(startX + PAD, 620.f, UI_PANEL_WIDTH - PAD * 2, CTRL_H);
+        sf::FloatRect exitBtn(startX + PAD, 645.f, UI_PANEL_WIDTH - PAD * 2, CTRL_H);
         drawButtonRect(w, exitBtn, exitBtn.contains((float)mouseX, (float)mouseY), Colors::BORDER_DIM);
-        drawText(w, "< Exit Race Mode", startX + PAD + 80.f, 628.f, 14, Colors::TEXT_MUTED, true);
+        drawText(w, "< Exit Race Mode", startX + PAD + 80.f, 653.f, 14, Colors::TEXT_MUTED, true);
 
         if (dropdownBOpen) renderDropdownList(w, 130.f, selectedAlgoB, algos, false);
         if (dropdownAOpen) renderDropdownList(w, 60.f, selectedAlgoA, algos, false);
@@ -297,9 +387,9 @@ private:
         drawText(w, label, x + (r.width/2.f) - (label.length()*3.5f), y + 8.f, 14, active ? Colors::TEXT_PRIMARY : Colors::TEXT_MUTED, true);
     }
     void drawMetricBox(sf::RenderWindow& w, float x, float y, const std::string& label, const std::string& value) {
-        sf::RectangleShape box(sf::Vector2f(140.f, 55.f)); box.setPosition(x, y); box.setFillColor(Colors::BG_APP);
+        sf::RectangleShape box(sf::Vector2f(140.f, 50.f)); box.setPosition(x, y); box.setFillColor(Colors::BG_APP);
         box.setOutlineThickness(1.f); box.setOutlineColor(Colors::BORDER_DIM); w.draw(box);
-        drawText(w, label, x + 10.f, y + 8.f, 11, Colors::TEXT_MUTED);
-        drawText(w, value, x + 10.f, y + 25.f, 20, Colors::ACCENT_TEAL, true);
+        drawText(w, label, x + 10.f, y + 6.f, 11, Colors::TEXT_MUTED);
+        drawText(w, value, x + 10.f, y + 20.f, 18, Colors::ACCENT_TEAL, true);
     }
 };

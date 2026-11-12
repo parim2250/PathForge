@@ -114,6 +114,12 @@ public:
         cell.cost = COST_EMPTY;
     }
 
+    // Check if a cell is a wall (safely returns true if out of bounds)
+    bool isWall(int row, int col) const {
+        if (!inBounds(row, col)) return true;
+        return cells[row][col].terrain == Terrain::WALL;
+    }
+
     // ============================================
     // CLEAR OPERATIONS
     // ============================================
@@ -138,8 +144,22 @@ public:
         startRow = startCol = endRow = endCol = -1;
     }
 
+    // Fill entire grid with solid walls (for maze generation algorithms)
+    void fillWalls() {
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLS; c++) {
+                setWall(r, c);
+                cells[r][c].resetVisual();
+            }
+        }
+        startRow = -1;
+        startCol = -1;
+        endRow = -1;
+        endCol = -1;
+    }
+
     // ============================================
-    // UTILITY
+    // UTILITY DIMENSIONS
     // ============================================
     int getRows() const { return ROWS; }
     int getCols() const { return COLS; }
