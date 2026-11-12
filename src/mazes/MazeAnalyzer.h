@@ -3,7 +3,7 @@
 #include <queue>
 #include <vector>
 #include <algorithm>
-#include<string>
+#include <string>
 
 // ============================================
 // ANALYZES A MAZE AND CALCULATES DIFFICULTY
@@ -98,29 +98,36 @@ private:
         return count;
     }
 
-    // Score based on multiple factors
+    // Score 0-100 tuned for 31x51 presets (Easy/Medium/Hard separation)
     static int calculateDifficulty(const AnalysisResult& r) {
         if (!r.hasPath) return 0;
-
-        // Base score from path length (longer = harder)
-        int pathScore = std::min(40, r.optimalPathLength / 3);
-
-        // Score from dead ends (more dead ends = harder for DFS)
-        int deadEndScore = std::min(30, r.deadEnds * 2);
-
-        // Score from nodes explored ratio (more exploration = harder)
-        int explorationScore = 0;
+        int totalCells = r.openCells + r.wallCells;
+        if (totalCells <= 0) return 0;
+        // 1) Forced path length (0-35)
+        // Easy ~80-140, Medium ~150-250, Hard ~280-450
+        int pathScore = std::min(35, (r.optimalPathLength * 35) / 400);
+        // 2) Wall density (0-25)
+        double wallRatio = (double)r.wallCells / (double)totalCells;
+        int wallScore = std::min(25, (int)(wallRatio * 55.0));
+        // 3) Dead-end count (0-25)
+        // Easy ~0-15, Hard ~30-80+
+        int deadEndScore = std::min(25, (r.deadEnds * 25) / 55);
+        // 4) How “tight” the optimal path is vs open space (0-15)
+        // Higher = long snake through the grid (harder)
+        int tightScore = 0;
         if (r.openCells > 0) {
-            double ratio = (double)r.nodesExplored / r.openCells;
-            explorationScore = std::min(30, (int)(ratio * 30));
+            double pathFrac = (double)r.optimalPathLength / (double)r.openCells;
+            tightScore = std::min(15, (int)(pathFrac * 90.0));
         }
-
-        return pathScore + deadEndScore + explorationScore;
+        int score = pathScore + wallScore + deadEndScore + tightScore;
+        if (score < 0) score = 0;
+        if (score > 100) score = 100;
+        return score;
     }
 
     static std::string getRating(int score) {
-        if (score < 25) return "Easy";
-        if (score < 50) return "Medium";
+        if (score < 28) return "Easy";
+        if (score < 52) return "Medium";
         if (score < 75) return "Hard";
         return "Extreme";
     }

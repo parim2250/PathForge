@@ -22,12 +22,13 @@ public:
         std::cout << "  ---------------------------------" << std::endl;
         std::cout << "  MAZE ANALYSIS" << std::endl;
         std::cout << "  ---------------------------------" << std::endl;
-        std::cout << "  Path found:         YES" << std::endl;
+        std::cout << "  Path found:          " << (analysis.hasPath ? "YES" : "NO") << std::endl;
         std::cout << "  Optimal path length: " << analysis.optimalPathLength << " cells" << std::endl;
-        std::cout << "  Open cells:         " << analysis.openCells << std::endl;
-        std::cout << "  Wall cells:         " << analysis.wallCells << std::endl;
-        std::cout << "  Dead ends:          " << analysis.deadEnds << std::endl;
-        std::cout << "  Difficulty score:   " << analysis.difficultyScore << "/100 (" << analysis.difficultyRating << ")" << std::endl;
+        std::cout << "  Open cells:          " << analysis.openCells << std::endl;
+        std::cout << "  Wall cells:          " << analysis.wallCells << std::endl;
+        std::cout << "  Dead ends:           " << analysis.deadEnds << std::endl;
+        std::cout << "  BFS nodes touched:   " << analysis.nodesExplored << std::endl;
+        std::cout << "  Difficulty score:    " << analysis.difficultyScore                  << "/100 (" << analysis.difficultyRating << ")" << std::endl;
         std::cout << "  ---------------------------------" << std::endl;
 
         return true;
