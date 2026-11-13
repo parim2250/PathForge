@@ -2,71 +2,108 @@
 #include <SFML/Graphics.hpp>
 
 namespace Colors {
-    // ============================================
-    // PREMIUM DARK UI THEME
-    // ============================================
-    const sf::Color BG_APP          = sf::Color(10, 14, 23);
-    const sf::Color BG_PANEL        = sf::Color(15, 23, 36);
-    const sf::Color UI_ELEMENT      = sf::Color(30, 41, 59);
-    const sf::Color UI_HOVER        = sf::Color(51, 65, 85);
-    const sf::Color BORDER_DIM      = sf::Color(51, 65, 85, 150);
-    const sf::Color GRID_BG         = sf::Color(15, 23, 36);
 
-    const sf::Color ACCENT_TEAL     = sf::Color(0, 245, 212);
-    const sf::Color ACCENT_PURPLE   = sf::Color(139, 92, 246);
-    const sf::Color ACCENT_GREEN    = sf::Color(46, 213, 115);
-    const sf::Color ACCENT_RED      = sf::Color(255, 71, 87);
+    // BACKGROUND — CHARCOAL / PURPLE
+    const sf::Color BG_APP       = sf::Color(11, 10, 15);
+    const sf::Color BG_PANEL     = sf::Color(19, 16, 27);
+    const sf::Color UI_ELEMENT   = sf::Color(31, 26, 42);
+    const sf::Color UI_HOVER     = sf::Color(48, 38, 65);
 
-    const sf::Color TEXT_PRIMARY    = sf::Color(241, 245, 249);
-    const sf::Color TEXT_SECONDARY  = sf::Color(148, 163, 184);
-    const sf::Color TEXT_MUTED      = sf::Color(100, 116, 139);
+    const sf::Color BORDER_DIM   = sf::Color(75, 57, 94, 120);
+    const sf::Color GRID_BG      = sf::Color(9, 8, 13);
 
-    const sf::Color EMPTY           = sf::Color(25, 35, 50);
-    const sf::Color EMPTY_HOVER     = sf::Color(35, 45, 65);
-    const sf::Color GRID_LINE       = sf::Color(40, 50, 70);
+    // ACCENTS
+    const sf::Color ACCENT_TEAL   = sf::Color(0, 229, 255);
+    const sf::Color ACCENT_PURPLE = sf::Color(174, 91, 255);
+    const sf::Color ACCENT_GREEN  = sf::Color(57, 255, 143);
+    const sf::Color ACCENT_RED    = sf::Color(255, 65, 105);
 
-    const sf::Color WALL            = sf::Color(71, 85, 105);
-    const sf::Color WALL_HIGHLIGHT  = sf::Color(100, 116, 139);
-    const sf::Color WALL_SHADOW     = sf::Color(30, 41, 59);
+    // TEXT
+    const sf::Color TEXT_PRIMARY   = sf::Color(245, 240, 250);
+    const sf::Color TEXT_SECONDARY = sf::Color(170, 160, 185);
+    const sf::Color TEXT_MUTED     = sf::Color(110, 101, 125);
 
-    // START = GREEN, END = RED
-    const sf::Color START           = sf::Color(46, 213, 115);
-    const sf::Color START_GLOW      = sf::Color(46, 213, 115, 90);
-    const sf::Color START_CORE      = sf::Color(200, 255, 220);
+    // GRID
+    const sf::Color EMPTY       = sf::Color(21, 19, 29);
+    const sf::Color EMPTY_HOVER = sf::Color(39, 32, 52);
+    const sf::Color GRID_LINE   = sf::Color(11, 10, 15);
 
-    const sf::Color END             = sf::Color(255, 71, 87);
-    const sf::Color END_GLOW        = sf::Color(255, 71, 87, 90);
-    const sf::Color END_CORE        = sf::Color(255, 210, 210);
+    // WALLS
+    const sf::Color WALL           = sf::Color(48, 42, 59);
+    const sf::Color WALL_HIGHLIGHT = sf::Color(75, 64, 91);
+    const sf::Color WALL_SHADOW    = sf::Color(25, 21, 32);
 
-    // Distinct terrain colors
-    const sf::Color SAND            = sf::Color(234, 179, 8);
-    const sf::Color WATER           = sf::Color(56, 189, 248);
-    const sf::Color MUD             = sf::Color(168, 100, 84);
+    // START / END
+    const sf::Color START      = sf::Color(0, 235, 145);
+    const sf::Color START_GLOW = sf::Color(0, 235, 145, 65);
+    const sf::Color START_CORE = sf::Color(220, 255, 240);
 
-    const sf::Color BFS_VISITED      = sf::Color(56, 189, 248, 80);
-    const sf::Color DFS_VISITED      = sf::Color(250, 204, 21, 80);
-    const sf::Color ASTAR_VISITED    = sf::Color(192, 132, 252, 80);
-    const sf::Color DIJKSTRA_VISITED = sf::Color(74, 222, 128, 80);
-    const sf::Color GREEDY_VISITED   = sf::Color(251, 113, 133, 80);
-    const sf::Color BIDIR_VISITED    = sf::Color(251, 146, 60, 80);
-    const sf::Color IDDFS_VISITED    = sf::Color(45, 212, 191, 80);
-    const sf::Color BOTH_VISITED     = sf::Color(148, 163, 184, 100);
+    const sf::Color END      = sf::Color(255, 70, 105);
+    const sf::Color END_GLOW = sf::Color(255, 70, 105, 65);
+    const sf::Color END_CORE = sf::Color(255, 225, 230);
 
-    const sf::Color BFS_PATH         = sf::Color(56, 189, 248);
-    const sf::Color DFS_PATH         = sf::Color(250, 204, 21);
-    const sf::Color ASTAR_PATH       = sf::Color(192, 132, 252);
-    const sf::Color DIJKSTRA_PATH    = sf::Color(74, 222, 128);
-    const sf::Color GREEDY_PATH      = sf::Color(251, 113, 133);
-    const sf::Color BIDIR_PATH       = sf::Color(251, 146, 60);
-    const sf::Color IDDFS_PATH       = sf::Color(45, 212, 191);
-    const sf::Color QLEARN_PATH      = sf::Color(0, 245, 212);
+    // TERRAIN
+    const sf::Color SAND  = sf::Color(225, 165, 65);
+    const sf::Color WATER = sf::Color(45, 155, 215);
+    const sf::Color MUD   = sf::Color(145, 88, 90);
 
-    const sf::Color PATH_OVERLAP     = ACCENT_TEAL;
-    const sf::Color FRONTIER         = sf::Color(255, 255, 255, 180);
+    // =========================================
+    // EXPLORED CELLS — LOW ALPHA NEON TINTS
+    // =========================================
 
-    // NEW: Universal Overlap Colors for Race Mode
-    const sf::Color OVERLAP_VISITED  = sf::Color(226, 232, 240, 110); // Silvery-white tint
-    const sf::Color OVERLAP_PATH     = sf::Color(255, 215, 0);        // Bright solid Gold
+    const sf::Color BFS_VISITED      = sf::Color(0, 210, 255, 65);
+    const sf::Color DFS_VISITED      = sf::Color(255, 195, 50, 65);
+    const sf::Color ASTAR_VISITED    = sf::Color(175, 90, 255, 65);
+    const sf::Color DIJKSTRA_VISITED = sf::Color(50, 235, 125, 65);
+    const sf::Color GREEDY_VISITED   = sf::Color(255, 65, 155, 65);
+    const sf::Color BIDIR_VISITED    = sf::Color(255, 135, 55, 65);
+    const sf::Color IDDFS_VISITED    = sf::Color(35, 220, 195, 65);
+
+    const sf::Color BOTH_VISITED =
+        sf::Color(190, 125, 230, 85);
+
+    // =========================================
+    // FINAL PATH — SOLID, BRIGHT COLOURS
+    // =========================================
+
+    const sf::Color BFS_PATH =
+        sf::Color(0, 229, 255);
+
+    const sf::Color DFS_PATH =
+        sf::Color(255, 205, 35);
+
+    const sf::Color ASTAR_PATH =
+        sf::Color(255, 255, 255);
+
+    const sf::Color DIJKSTRA_PATH =
+        sf::Color(40, 255, 125);
+
+    const sf::Color GREEDY_PATH =
+        sf::Color(255, 60, 172);
+
+    const sf::Color BIDIR_PATH =
+        sf::Color(255, 140, 40);
+
+    const sf::Color IDDFS_PATH =
+        sf::Color(30, 220, 190);
+
+    const sf::Color QLEARN_PATH =
+        sf::Color(0, 229, 255);
+
+    // OVERLAPS
+    const sf::Color PATH_OVERLAP =
+        sf::Color(255, 215, 55);
+
+    const sf::Color OVERLAP_PATH =
+        sf::Color(255, 215, 55);
+
+    const sf::Color OVERLAP_VISITED =
+        sf::Color(190, 125, 230, 85);
+
+    const sf::Color FRONTIER =
+        sf::Color(170, 145, 195, 100);
+
+    // COMPATIBILITY
     inline const sf::Color BORDER = BORDER_DIM;
     inline const sf::Color BUTTON_BG = UI_ELEMENT;
     inline const sf::Color BUTTON_HOVER = UI_HOVER;
